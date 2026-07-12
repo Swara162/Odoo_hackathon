@@ -1,0 +1,68 @@
+/* src/AppShell.css */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #eef1f5;
+}
+
+.app-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Topbar */
+.topbar {
+  height: 60px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  flex-shrink: 0;
+}
+
+.topbar-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #6b7280;
+  font-size: 20px;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.topbar-icon-btn:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.page-body {
+  flex: 1;
+  padding: 28px;
+  overflow-y: auto;
+}

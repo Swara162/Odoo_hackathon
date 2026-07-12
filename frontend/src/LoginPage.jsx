@@ -66,8 +66,8 @@ export default function LoginPage() {
         }, 1500);
       });
 
-      alert('Successfully signed in!');
-      // Proceed to post-login navigation or state updates here...
+      // Navigate to the dashboard on successful login
+      navigate('/dashboard');
     } catch (err) {
       // Set the error state based on auth failure
       setError(err.message || 'Incorrect email or password.');
