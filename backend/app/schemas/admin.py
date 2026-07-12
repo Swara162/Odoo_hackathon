@@ -1,107 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional
 
-from app.database.database import get_db
-from app.api.role_checker import RoleChecker
+class DepartmentCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
 
-from app.models.user import User, UserRole
-from app.models.department import Department
-from app.models.asset_category import AssetCategory
+class CategoryCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
 
-from app.schemas.admin import (
-    DepartmentCreate,
-    CategoryCreate,
-    PromoteUserRequest
-)
-
-router = APIRouter(
-    prefix="/admin",
-    tags=["Admin"]
-)
-
-allow_admin = RoleChecker(["ADMIN"])
-
-
-@router.get("/dashboard")
-def admin_dashboard(
-    current_user=Depends(allow_admin)
-):
-    return {
-        "message": f"Welcome {current_user.full_name}"
-    }
-
-
-@router.get("/employees")
-def employee_directory(
-    db: Session = Depends(get_db),
-    current_user=Depends(allow_admin)
-):
-    return db.query(User).all()
-
-
-@router.post("/departments")
-def create_department(
-    request: DepartmentCreate,
-    db: Session = Depends(get_db),
-    current_user=Depends(allow_admin)
-):
-
-    department = Department(
-        name=request.name,
-        description=request.description
-    )
-
-    db.add(department)
-    db.commit()
-    db.refresh(department)
-
-    return department
-
-
-@router.post("/categories")
-def create_category(
-    request: CategoryCreate,
-    db: Session = Depends(get_db),
-    current_user=Depends(allow_admin)
-):
-
-    category = AssetCategory(
-        name=request.name,
-        description=request.description
-    )
-
-    db.add(category)
-    db.commit()
-    db.refresh(category)
-
-    return category
-
-
-@router.put("/promote/{user_id}")
-def promote_user(
-    user_id: str,
-    request: PromoteUserRequest,
-    db: Session = Depends(get_db),
-    current_user=Depends(allow_admin)
-):
-
-    user = db.query(User).filter(
-        User.id == user_id
-    ).first()
-
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found"
-        )
-
-    user.role = UserRole(request.role)
-
-    if request.department_id:
-        user.department_id = request.department_id
-
-    db.commit()
-
-    return {
-        "message": "User promoted successfully"
-    }
+class PromoteUserRequest(BaseModel):
+    role: str
+    department_id: Optional[str] = None
