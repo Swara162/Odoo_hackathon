@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AlertCircle, Eye, EyeOff, UserPlus, Box } from 'lucide-react';
+import { useToast } from './components/Toast';
+import { useAuth } from './context/AuthContext';
 import './SignupPage.css';
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const toast = useToast();
+  const { register } = useAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -75,41 +80,23 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      // Simulate real API / auth call with setTimeout inside a Promise
-      await new Promise((resolve, reject) => {
-        setTimeout(() => {
-          // Simulate database unique constraints:
-          if (email.toLowerCase() === 'taken@company.com') {
-            reject(new Error('DUPLICATE_EMAIL'));
-          } else {
-            resolve();
-          }
-        }, 1500);
+      await register({
+        full_name: fullName,
+        email: email,
+        password: password,
+        role: "EMPLOYEE"
       });
 
-      // Real auth call would look like this:
-      // const { data, error } = await supabase.auth.signUp({
-      //   email,
-      //   password,
-      //   options: {
-      //     data: {
-      //       full_name: fullName,
-      //       role: 'employee' // Default role is assigned server-side or in metadata, never trusted blindly from client input.
-      //     }
-      //   }
-      // });
-      // if (error) throw error;
-
-      alert('Account successfully created!');
+      toast.success('Account successfully created! Please log in.', { title: 'Account Created' });
       navigate('/login');
     } catch (err) {
-      if (err.message === 'DUPLICATE_EMAIL') {
+      if (err.response?.status === 400 && err.response.data?.detail?.includes('exists')) {
         setErrors((prev) => ({
           ...prev,
           email: 'An account with this email already exists.'
         }));
       } else {
-        alert(err.message || 'An error occurred during sign up.');
+        toast.error(err.response?.data?.detail || err.message || 'An error occurred during sign up.');
       }
     } finally {
       setIsLoading(false);
@@ -123,7 +110,7 @@ export default function SignupPage() {
         <div className="brand-inner">
           <div className="brand-header">
             <div className="brand-icon">
-              <i className="ti ti-cube" aria-hidden="true"></i>
+              <Box size={22} strokeWidth={2} aria-hidden="true" />
             </div>
             <span className="brand-name">AssetFlow</span>
           </div>
@@ -138,15 +125,15 @@ export default function SignupPage() {
           {/* Checklist */}
           <div className="features-list">
             <div className="feature-item">
-              <i className="ti ti-check feature-icon" aria-hidden="true"></i>
+              <i className="feature-icon-check" aria-hidden="true"><AlertCircle size={15} /></i>
               <span className="feature-text">Full asset lifecycle tracking</span>
             </div>
             <div className="feature-item">
-              <i className="ti ti-check feature-icon" aria-hidden="true"></i>
+              <i className="feature-icon-check" aria-hidden="true"><AlertCircle size={15} /></i>
               <span className="feature-text">Conflict-free allocation and booking</span>
             </div>
             <div className="feature-item">
-              <i className="ti ti-check feature-icon" aria-hidden="true"></i>
+              <i className="feature-icon-check" aria-hidden="true"><AlertCircle size={15} /></i>
               <span className="feature-text">Approval-gated maintenance workflow</span>
             </div>
           </div>
@@ -168,7 +155,7 @@ export default function SignupPage() {
                 Full Name
               </label>
               <div className="input-wrapper">
-                <i className="ti ti-user input-icon-left" aria-hidden="true"></i>
+                <span className="input-icon-left"><UserPlus size={16} aria-hidden="true" /></span>
                 <input
                   id="fullname-input"
                   type="text"
@@ -183,7 +170,7 @@ export default function SignupPage() {
               </div>
               {errors.fullName && (
                 <span className="field-error-message" role="alert">
-                  <i className="ti ti-alert-circle" aria-hidden="true"></i>
+                  <AlertCircle size={13} aria-hidden="true" />
                   {errors.fullName}
                 </span>
               )}
@@ -195,7 +182,7 @@ export default function SignupPage() {
                 Work Email
               </label>
               <div className="input-wrapper">
-                <i className="ti ti-mail input-icon-left" aria-hidden="true"></i>
+                <span className="input-icon-left"><AlertCircle size={16} aria-hidden="true" /></span>
                 <input
                   id="email-input"
                   type="email"
@@ -210,7 +197,7 @@ export default function SignupPage() {
               </div>
               {errors.email && (
                 <span className="field-error-message" role="alert">
-                  <i className="ti ti-alert-circle" aria-hidden="true"></i>
+                  <AlertCircle size={13} aria-hidden="true" />
                   {errors.email}
                 </span>
               )}
@@ -223,7 +210,7 @@ export default function SignupPage() {
                   Password
                 </label>
                 <div className="input-wrapper">
-                  <i className="ti ti-lock input-icon-left" aria-hidden="true"></i>
+                  <span className="input-icon-left"><AlertCircle size={16} aria-hidden="true" /></span>
                   <input
                     id="password-input"
                     type="password"
@@ -249,7 +236,7 @@ export default function SignupPage() {
                   Confirm Password
                 </label>
                 <div className="input-wrapper">
-                  <i className="ti ti-lock input-icon-left" aria-hidden="true"></i>
+                  <span className="input-icon-left"><AlertCircle size={16} aria-hidden="true" /></span>
                   <input
                     id="confirm-password-input"
                     type="password"
@@ -273,7 +260,7 @@ export default function SignupPage() {
 
             {/* Info Banner */}
             <div className="info-banner">
-              <i className="ti ti-info-circle info-banner-icon" aria-hidden="true"></i>
+              <span className="info-banner-icon"><AlertCircle size={16} aria-hidden="true" /></span>
               <p className="info-banner-text">
                 Your account is created as an <strong>employee</strong> by default. An admin can promote you to Department Head or Asset Manager later from the organization directory.
               </p>

@@ -3,62 +3,9 @@ import Sidebar from './Sidebar';
 import './AuditPage.css';
 import './AppShell.css';
 
-const CURRENT_USER = {
-  id: 1,
-  full_name: 'Swara',
-  role: 'ADMIN',
-};
-
-const INITIAL_DEPARTMENTS = [
-  { id: 1, name: 'Engineering' },
-  { id: 2, name: 'Operations' },
-  { id: 3, name: 'HR' },
-];
-
-const INITIAL_USERS = [
-  { id: 1, full_name: 'Swara' },
-  { id: 2, full_name: 'Priya Sharma' },
-  { id: 3, full_name: 'Ravi Menon' },
-];
-
-const INITIAL_ASSETS = [
-  { id: 1, name: 'MacBook Pro 16"', department_id: 1, status: 'ALLOCATED' },
-  { id: 2, name: 'Dell Monitor 27"', department_id: 1, status: 'AVAILABLE' },
-  { id: 3, name: 'Epson Projector', department_id: 2, status: 'UNDER_MAINTENANCE' },
-  { id: 4, name: 'Ergonomic Chair', department_id: 2, status: 'AVAILABLE' },
-];
-
-const INITIAL_CYCLES = [
-  {
-    id: 1,
-    title: 'Q3 Asset Verification',
-    department_id: 1,
-    auditor_id: 2,
-    start_date: '2026-07-01',
-    end_date: '2026-07-10',
-    status: 'IN_PROGRESS',
-    created_by: 1,
-  },
-];
-
-const INITIAL_ITEMS = [
-  {
-    id: 1,
-    audit_cycle_id: 1,
-    asset_id: 1,
-    verification_status: 'VERIFIED',
-    remarks: 'Checked and working',
-    verified_at: '2026-07-03',
-  },
-  {
-    id: 2,
-    audit_cycle_id: 1,
-    asset_id: 2,
-    verification_status: '',
-    remarks: '',
-    verified_at: '',
-  },
-];
+import api from './api';
+import { useAuth } from './context/AuthContext';
+import { useToast } from './components/Toast';
 
 const STATUS_CLASS = {
   OPEN: 'status-blue',
@@ -67,19 +14,40 @@ const STATUS_CLASS = {
 };
 
 export default function AuditPage() {
-  const [cycles, setCycles] = useState(INITIAL_CYCLES);
-  const [items, setItems] = useState(INITIAL_ITEMS);
-  const [assets, setAssets] = useState(INITIAL_ASSETS);
-  const [departments] = useState(INITIAL_DEPARTMENTS);
-  const [users] = useState(INITIAL_USERS);
+  const { user } = useAuth();
+  const toast = useToast();
+
+  const [cycles, setCycles] = useState([]);
+  const [items, setItems] = useState([]);
+  const [assets, setAssets] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCycle, setSelectedCycle] = useState(INITIAL_CYCLES[0]);
+  const [selectedCycle, setSelectedCycle] = useState(null);
   const [form, setForm] = useState({ title: '', department_id: '', auditor_id: '', start_date: '', end_date: '' });
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setLoading(false), 700);
-    return () => window.clearTimeout(timer);
+    async function fetchData() {
+      try {
+        const [cycRes, astRes, depRes, usrRes] = await Promise.all([
+          api.get('/audit/cycles').catch(() => ({ data: [] })),
+          api.get('/assets/'),
+          api.get('/admin/departments'),
+          api.get('/admin/employees'),
+        ]);
+        setCycles(cycRes.data);
+        setAssets(astRes.data);
+        setDepartments(depRes.data);
+        setUsers(usrRes.data);
+        if (cycRes.data.length > 0) setSelectedCycle(cycRes.data[0]);
+      } catch (err) {
+        toast.error('Failed to load audit data');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
   }, []);
 
   const cycleItems = useMemo(() => items.filter((item) => item.audit_cycle_id === selectedCycle?.id), [items, selectedCycle]);
@@ -96,55 +64,55 @@ export default function AuditPage() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!validateForm()) return;
-    const newCycle = {
-      id: Date.now(),
-      title: form.title.trim(),
-      department_id: Number(form.department_id),
-      auditor_id: Number(form.auditor_id),
-      start_date: form.start_date,
-      end_date: form.end_date,
-      status: 'OPEN',
-      created_by: CURRENT_USER.id,
-    };
-    const departmentAssets = assets.filter((asset) => asset.department_id === Number(form.department_id));
-    const newItems = departmentAssets.map((asset) => ({
-      id: Date.now() + asset.id,
-      audit_cycle_id: newCycle.id,
-      asset_id: asset.id,
-      verification_status: '',
-      remarks: '',
-      verified_at: '',
-    }));
-    setCycles((prev) => [newCycle, ...prev]);
-    setItems((prev) => [...newItems, ...prev]);
-    setSelectedCycle(newCycle);
-    setForm({ title: '', department_id: '', auditor_id: '', start_date: '', end_date: '' });
-    setErrors({});
+    try {
+      const { data } = await api.post('/audit/cycles', {
+        title: form.title.trim(),
+        department_id: Number(form.department_id),
+        auditor_id: Number(form.auditor_id),
+        start_date: form.start_date,
+        end_date: form.end_date,
+      });
+      setCycles((prev) => [data, ...prev]);
+      if (data.items) setItems((prev) => [...data.items, ...prev]);
+      setSelectedCycle(data);
+      toast.success('Audit cycle created');
+      setForm({ title: '', department_id: '', auditor_id: '', start_date: '', end_date: '' });
+      setErrors({});
+    } catch (err) {
+      toast.error('Failed to create audit cycle');
+    }
   };
 
-  const updateItem = (itemId, status, remarks = '') => {
-    setItems((prev) => prev.map((item) => (item.id === itemId ? { ...item, verification_status: status, verified_at: new Date().toISOString().split('T')[0], remarks } : item)));
+  const updateItem = async (itemId, status, remarks = '') => {
+    try {
+      await api.put(`/audit/items/${itemId}`, { verification_status: status, remarks });
+      setItems((prev) => prev.map((item) => (item.id === itemId ? { ...item, verification_status: status, verified_at: new Date().toISOString().split('T')[0], remarks } : item)));
+    } catch (err) {
+      toast.error('Failed to update audit item');
+    }
   };
 
-  const closeCycle = () => {
+  const closeCycle = async () => {
     if (!selectedCycle || !allReviewed) return;
-    setCycles((prev) => prev.map((cycle) => (cycle.id === selectedCycle.id ? { ...cycle, status: 'CLOSED' } : cycle)));
-    setAssets((prev) => prev.map((asset) => {
-      const missingItem = items.find((item) => item.audit_cycle_id === selectedCycle.id && item.asset_id === asset.id && item.verification_status === 'MISSING');
-      return missingItem ? { ...asset, status: 'LOST' } : asset;
-    }));
+    try {
+      await api.put(`/audit/cycles/${selectedCycle.id}/close`);
+      setCycles((prev) => prev.map((cycle) => (cycle.id === selectedCycle.id ? { ...cycle, status: 'CLOSED' } : cycle)));
+      toast.success('Audit cycle closed');
+    } catch (err) {
+      toast.error('Failed to close audit cycle');
+    }
   };
 
-  const resolveDepartmentName = (departmentId) => departments.find((department) => department.id === departmentId)?.name || '—';
-  const resolveAuditorName = (auditorId) => users.find((user) => user.id === auditorId)?.full_name || '—';
-  const resolveAssetName = (assetId) => assets.find((asset) => asset.id === assetId)?.name || '—';
+  const resolveDepartmentName = (departmentId) => departments.find((d) => d.id === departmentId)?.name || '—';
+  const resolveAuditorName = (auditorId) => users.find((u) => u.id === auditorId)?.full_name || '—';
+  const resolveAssetName = (assetId) => assets.find((a) => a.id === assetId)?.name || '—';
 
   return (
     <div className="app-shell">
-      <Sidebar user={CURRENT_USER} />
+      <Sidebar user={user} />
       <div className="app-content">
         <main className="audit-page">
           <header className="audit-topbar">

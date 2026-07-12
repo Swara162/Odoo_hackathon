@@ -63,8 +63,7 @@
   height: 220px;
 }
 
-.report-pie-wrap,
-.report-line-wrap {
+.report-pie-wrap {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -99,9 +98,17 @@
   border-radius: 999px;
 }
 
+.report-line-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  height: 220px;
+}
+
 .report-line-chart {
-  width: 160px;
-  height: 140px;
+  width: 100%;
+  height: 150px;
   flex-shrink: 0;
 }
 
@@ -112,7 +119,7 @@
 
 .report-line-polyline {
   fill: none;
-  stroke: #2563eb;
+  stroke: #1e40af; /* Matches updated professional dark blue */
   stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -122,6 +129,7 @@
   display: flex;
   justify-content: space-between;
   width: 100%;
+  padding: 0 4px;
   font-size: 11px;
   color: #6b7280;
   text-transform: uppercase;

@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Box, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { useAuth } from './context/AuthContext';
 import './LoginPage.css';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -51,26 +54,12 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Simulate real API / auth call with setTimeout inside a Promise
-      await new Promise((resolve, reject) => {
-        setTimeout(() => {
-          // Replace this logic with your real auth handler, e.g.:
-          // const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-          // if (error) reject(error); else resolve(data);
-          
-          if (email === 'demo@company.com' && password === 'password123') {
-            resolve({ user: 'demo' });
-          } else {
-            reject(new Error('Incorrect email or password.'));
-          }
-        }, 1500);
-      });
-
+      await login(email, password);
       // Navigate to the dashboard on successful login
       navigate('/dashboard');
     } catch (err) {
       // Set the error state based on auth failure
-      setError(err.message || 'Incorrect email or password.');
+      setError(err.response?.data?.detail || err.message || 'Incorrect email or password.');
       setEmailInvalid(true);
       setPasswordInvalid(true);
     } finally {
@@ -85,7 +74,7 @@ export default function LoginPage() {
         <div className="brand-inner">
           <div className="brand-header">
             <div className="brand-icon">
-              <i className="ti ti-cube" aria-hidden="true"></i>
+              <Box size={22} strokeWidth={2} aria-hidden="true" />
             </div>
             <span className="brand-name">AssetFlow</span>
           </div>
@@ -125,7 +114,7 @@ export default function LoginPage() {
                 Email Address
               </label>
               <div className="input-wrapper">
-                <i className="ti ti-mail input-icon-left" aria-hidden="true"></i>
+                <span className="input-icon-left"><Mail size={16} aria-hidden="true" /></span>
                 <input
                   id="email-input"
                   type="email"
@@ -146,7 +135,7 @@ export default function LoginPage() {
                 Password
               </label>
               <div className="input-wrapper">
-                <i className="ti ti-lock input-icon-left" aria-hidden="true"></i>
+                <span className="input-icon-left"><Lock size={16} aria-hidden="true" /></span>
                 <input
                   id="password-input"
                   type={showPassword ? 'text' : 'password'}
@@ -165,10 +154,7 @@ export default function LoginPage() {
                   disabled={isLoading}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  <i
-                    className={showPassword ? 'ti ti-eye-off' : 'ti ti-eye'}
-                    aria-hidden="true"
-                  ></i>
+                  {showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
                 </button>
               </div>
               {/* Forgot Password Link */}
@@ -180,7 +166,7 @@ export default function LoginPage() {
             {/* Inline Error Message */}
             {error && (
               <div className="error-message" role="alert">
-                <i className="ti ti-alert-circle" aria-hidden="true"></i>
+                <AlertCircle size={15} aria-hidden="true" />
                 <span>{error}</span>
               </div>
             )}

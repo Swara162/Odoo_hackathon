@@ -4,48 +4,9 @@ import { formatDisplayDate } from './utils/dateFormat';
 import './ResourceBookingPage.css';
 import './AppShell.css';
 
-const CURRENT_USER = {
-  id: 1,
-  full_name: 'Swara',
-  role: 'ADMIN',
-};
-
-const INITIAL_ASSETS = [
-  { id: 1, name: 'Conference Room A', asset_tag: 'AF-0001', bookable: true },
-  { id: 2, name: 'Projector #2', asset_tag: 'AF-0002', bookable: true },
-  { id: 3, name: 'Training Lab', asset_tag: 'AF-0003', bookable: true },
-  { id: 4, name: 'Ergonomic Chair', asset_tag: 'AF-0004', bookable: false },
-];
-
-const INITIAL_USERS = [
-  { id: 1, full_name: 'Swara' },
-  { id: 2, full_name: 'Priya Sharma' },
-  { id: 3, full_name: 'Ravi Menon' },
-  { id: 4, full_name: 'Anjali Verma' },
-];
-
-const INITIAL_BOOKINGS = [
-  {
-    id: 1,
-    resource_name: 'Conference Room A',
-    booked_by: 2,
-    booking_date: '2026-07-12',
-    start_time: '09:00',
-    end_time: '10:30',
-    purpose: 'Sprint planning',
-    status: 'ONGOING',
-  },
-  {
-    id: 2,
-    resource_name: 'Projector #2',
-    booked_by: 4,
-    booking_date: '2026-07-12',
-    start_time: '14:00',
-    end_time: '15:00',
-    purpose: 'Client demo',
-    status: 'UPCOMING',
-  },
-];
+import api from './api';
+import { useAuth } from './context/AuthContext';
+import { useToast } from './components/Toast';
 
 const EMPTY_FORM = {
   resource_name: '',
@@ -60,7 +21,7 @@ function toMinutes(time) {
   return hours * 60 + minutes;
 }
 
-export function findBookingOverlap(bookings, resourceName, bookingDate, startTime, endTime, excludeId = null) {
+function findBookingOverlap(bookings, resourceName, bookingDate, startTime, endTime, excludeId = null) {
   const newStart = toMinutes(startTime);
   const newEnd = toMinutes(endTime);
   return bookings.find((booking) => {
@@ -73,22 +34,42 @@ export function findBookingOverlap(bookings, resourceName, bookingDate, startTim
 }
 
 export default function ResourceBookingPage() {
-  const [bookings, setBookings] = useState(INITIAL_BOOKINGS);
-  const [assets] = useState(INITIAL_ASSETS);
-  const [users] = useState(INITIAL_USERS);
+  const { user } = useAuth();
+  const toast = useToast();
+
+  const [bookings, setBookings] = useState([]);
+  const [assets, setAssets] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingBookingId, setEditingBookingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
-  const [selectedResource, setSelectedResource] = useState(INITIAL_ASSETS[0]?.name || '');
+  const [selectedResource, setSelectedResource] = useState('');
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setLoading(false), 700);
-    return () => window.clearTimeout(timer);
+    async function fetchData() {
+      try {
+        const [bkRes, astRes, usrRes] = await Promise.all([
+          api.get('/bookings/').catch(() => ({ data: [] })),
+          api.get('/assets/'),
+          api.get('/admin/employees'),
+        ]);
+        setBookings(bkRes.data);
+        setAssets(astRes.data);
+        setUsers(usrRes.data);
+        const bookable = astRes.data.filter((a) => a.is_bookable || a.bookable);
+        if (bookable.length > 0) setSelectedResource(bookable[0].name);
+      } catch (err) {
+        toast.error('Failed to load booking data');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
   }, []);
 
-  const resourceOptions = useMemo(() => assets.filter((asset) => asset.bookable), [assets]);
+
 
   const selectedResourceBookings = useMemo(() => {
     return bookings.filter((booking) => booking.resource_name === selectedResource).sort((a, b) => a.start_time.localeCompare(b.start_time));
@@ -135,42 +116,57 @@ export default function ResourceBookingPage() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!validateForm()) return;
 
-    const draft = {
-      id: editingBookingId || Date.now(),
-      resource_name: form.resource_name,
-      booked_by: CURRENT_USER.id,
-      booking_date: form.booking_date,
-      start_time: form.start_time,
-      end_time: form.end_time,
-      purpose: form.purpose.trim(),
-      status: editingBookingId ? 'UPCOMING' : 'UPCOMING',
-    };
-
-    if (editingBookingId) {
-      setBookings((prev) => prev.map((booking) => (booking.id === editingBookingId ? draft : booking)));
-    } else {
-      setBookings((prev) => [draft, ...prev]);
+    try {
+      if (editingBookingId) {
+        const { data } = await api.put(`/bookings/${editingBookingId}`, {
+          resource_name: form.resource_name,
+          booking_date: form.booking_date,
+          start_time: form.start_time,
+          end_time: form.end_time,
+          purpose: form.purpose.trim(),
+        });
+        setBookings((prev) => prev.map((b) => (b.id === editingBookingId ? data : b)));
+        toast.success('Booking rescheduled');
+      } else {
+        const { data } = await api.post('/bookings/', {
+          resource_name: form.resource_name,
+          booking_date: form.booking_date,
+          start_time: form.start_time,
+          end_time: form.end_time,
+          purpose: form.purpose.trim(),
+        });
+        setBookings((prev) => [data, ...prev]);
+        toast.success('Booking created');
+      }
+      setShowForm(false);
+      setEditingBookingId(null);
+      setForm(EMPTY_FORM);
+      setSelectedResource(form.resource_name);
+    } catch (err) {
+      toast.error('Failed to save booking');
     }
-
-    setShowForm(false);
-    setEditingBookingId(null);
-    setForm(EMPTY_FORM);
-    setSelectedResource(form.resource_name);
   };
 
-  const handleCancel = (bookingId) => {
-    setBookings((prev) => prev.map((booking) => (booking.id === bookingId ? { ...booking, status: 'CANCELLED' } : booking)));
+  const handleCancel = async (bookingId) => {
+    try {
+      await api.put(`/bookings/${bookingId}/cancel`);
+      setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: 'CANCELLED' } : b)));
+      toast.success('Booking cancelled');
+    } catch (err) {
+      toast.error('Failed to cancel booking');
+    }
   };
 
-  const resolveUserName = (userId) => users.find((user) => user.id === userId)?.full_name || '—';
+  const resourceOptions = useMemo(() => assets.filter((a) => a.is_bookable || a.bookable), [assets]);
+  const resolveUserName = (userId) => users.find((u) => u.id === userId)?.full_name || '—';
 
   return (
     <div className="app-shell">
-      <Sidebar user={CURRENT_USER} />
+      <Sidebar user={user} />
       <div className="app-content">
         <main className="booking-page">
           <header className="booking-topbar">

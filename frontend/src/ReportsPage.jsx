@@ -3,42 +3,8 @@ import Sidebar from './Sidebar';
 import './ReportsPage.css';
 import './AppShell.css';
 
-const CURRENT_USER = {
-  id: 1,
-  full_name: 'Swara',
-  role: 'ADMIN',
-};
-
-const INITIAL_ASSETS = [
-  { id: 1, name: 'MacBook Pro 16"', department_id: 1, condition: 'GOOD', status: 'ALLOCATED' },
-  { id: 2, name: 'Dell Monitor 27"', department_id: 1, condition: 'POOR', status: 'AVAILABLE' },
-  { id: 3, name: 'Epson Projector', department_id: 2, condition: 'DAMAGED', status: 'UNDER_MAINTENANCE' },
-  { id: 4, name: 'Ergonomic Chair', department_id: 2, condition: 'GOOD', status: 'AVAILABLE' },
-];
-
-const INITIAL_ALLOCATIONS = [
-  { id: 1, asset_id: 1, allocation_status: 'ACTIVE' },
-  { id: 2, asset_id: 1, allocation_status: 'ACTIVE' },
-  { id: 3, asset_id: 2, allocation_status: 'RETURNED' },
-  { id: 4, asset_id: 3, allocation_status: 'ACTIVE' },
-];
-
-const INITIAL_MAINTENANCE = [
-  { id: 1, asset_id: 1, category_id: 1 },
-  { id: 2, asset_id: 1, category_id: 1 },
-  { id: 3, asset_id: 3, category_id: 3 },
-];
-
-const INITIAL_BOOKINGS = [
-  { id: 1, resource_name: 'Conference Room A', start_time: '2026-07-12T09:00:00' },
-  { id: 2, resource_name: 'Conference Room A', start_time: '2026-07-12T10:00:00' },
-  { id: 3, resource_name: 'Projector #2', start_time: '2026-07-13T11:00:00' },
-];
-
-const INITIAL_DEPARTMENTS = [
-  { id: 1, name: 'Engineering' },
-  { id: 2, name: 'Operations' },
-];
+import api from './api';
+import { useAuth } from './context/AuthContext';
 
 function BarChartCard({ title, data, labels, exportLabel }) {
   const canvasRef = useRef(null);
@@ -148,57 +114,82 @@ function LineChartCard({ title, data, labels, exportLabel }) {
 }
 
 export default function ReportsPage() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [assets, setAssets] = useState([]);
+  const [allocations, setAllocations] = useState([]);
+  const [maintenance, setMaintenance] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [departments, setDepartments] = useState([]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setLoading(false), 700);
-    return () => window.clearTimeout(timer);
+    async function fetchData() {
+      try {
+        const [astRes, allocRes, mntRes, bkRes, depRes] = await Promise.all([
+          api.get('/assets/'),
+          api.get('/allocations/').catch(() => ({ data: [] })),
+          api.get('/maintenance/').catch(() => ({ data: [] })),
+          api.get('/bookings/').catch(() => ({ data: [] })),
+          api.get('/admin/departments'),
+        ]);
+        setAssets(astRes.data);
+        setAllocations(allocRes.data);
+        setMaintenance(mntRes.data);
+        setBookings(bkRes.data);
+        setDepartments(depRes.data);
+      } catch (err) {
+        console.error('Failed to load report data');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
   }, []);
 
   const utilizationData = useMemo(() => {
-    const allocationCounts = INITIAL_ALLOCATIONS.reduce((acc, allocation) => {
+    const allocationCounts = allocations.reduce((acc, allocation) => {
       acc[allocation.asset_id] = (acc[allocation.asset_id] || 0) + 1;
       return acc;
     }, {});
-    return INITIAL_ASSETS.map((asset) => allocationCounts[asset.id] || 0);
-  }, []);
+    return assets.map((asset) => allocationCounts[asset.id] || 0);
+  }, [assets, allocations]);
 
   const departmentData = useMemo(() => {
-    const counts = INITIAL_DEPARTMENTS.reduce((acc, department) => ({ ...acc, [department.id]: 0 }), {});
-    INITIAL_ALLOCATIONS.filter((allocation) => allocation.allocation_status === 'ACTIVE').forEach((allocation) => {
-      const asset = INITIAL_ASSETS.find((item) => item.id === allocation.asset_id);
-      if (asset) counts[asset.department_id] += 1;
+    const counts = departments.reduce((acc, department) => ({ ...acc, [department.id]: 0 }), {});
+    allocations.filter((alloc) => alloc.allocation_status === 'ACTIVE').forEach((alloc) => {
+      const asset = assets.find((a) => a.id === alloc.asset_id);
+      if (asset) counts[asset.department_id] = (counts[asset.department_id] || 0) + 1;
     });
-    return INITIAL_DEPARTMENTS.map((department) => counts[department.id] || 0);
-  }, []);
+    return departments.map((department) => counts[department.id] || 0);
+  }, [departments, allocations, assets]);
 
   const maintenanceData = useMemo(() => {
-    const counts = INITIAL_ASSETS.reduce((acc, asset) => ({ ...acc, [asset.id]: 0 }), {});
-    INITIAL_MAINTENANCE.forEach((entry) => { counts[entry.asset_id] += 1; });
-    return INITIAL_ASSETS.map((asset) => counts[asset.id] || 0);
-  }, []);
+    const counts = assets.reduce((acc, asset) => ({ ...acc, [asset.id]: 0 }), {});
+    maintenance.forEach((entry) => { counts[entry.asset_id] = (counts[entry.asset_id] || 0) + 1; });
+    return assets.map((asset) => counts[asset.id] || 0);
+  }, [assets, maintenance]);
 
   const heatmapCells = useMemo(() => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const hours = Array.from({ length: 24 }, (_, index) => index);
     const matrix = days.map(() => hours.map(() => 0));
-    INITIAL_BOOKINGS.forEach((booking) => {
-      const date = new Date(booking.start_time);
+    bookings.forEach((booking) => {
+      const date = new Date(booking.start_time || booking.booking_date);
       const day = date.getDay();
       const hour = date.getHours();
       const row = day === 0 ? 6 : day - 1;
       matrix[row][hour] += 1;
     });
     return { days, hours, matrix };
-  }, []);
+  }, [bookings]);
 
   const retirementWatch = useMemo(() => {
-    return INITIAL_ASSETS.filter((asset) => asset.condition === 'POOR' || asset.condition === 'DAMAGED');
-  }, []);
+    return assets.filter((asset) => asset.condition === 'POOR' || asset.condition === 'DAMAGED');
+  }, [assets]);
 
   const statusBreakdown = useMemo(() => {
     const counts = { AVAILABLE: 0, ALLOCATED: 0, UNDER_MAINTENANCE: 0, LOST: 0, RETIRED: 0 };
-    INITIAL_ASSETS.forEach((asset) => {
+    assets.forEach((asset) => {
       counts[asset.status] = (counts[asset.status] || 0) + 1;
     });
     return {
@@ -206,7 +197,7 @@ export default function ReportsPage() {
       data: Object.values(counts),
       colors: ['#10b981', '#2563eb', '#f59e0b', '#ef4444', '#6b7280'],
     };
-  }, []);
+  }, [assets]);
 
   const trendData = useMemo(() => ({
     labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
@@ -215,7 +206,7 @@ export default function ReportsPage() {
 
   return (
     <div className="app-shell">
-      <Sidebar user={CURRENT_USER} />
+      <Sidebar user={user} />
       <div className="app-content">
         <main className="reports-page">
           <header className="reports-topbar">
@@ -229,11 +220,11 @@ export default function ReportsPage() {
             <div className="reports-loading">Loading analytics…</div>
           ) : (
             <div className="reports-grid">
-              <BarChartCard title="Asset utilization" data={utilizationData} labels={INITIAL_ASSETS.map((asset) => asset.name)} exportLabel="asset-utilization" />
+              <BarChartCard title="Asset utilization" data={utilizationData} labels={assets.map((a) => a.name)} exportLabel="asset-utilization" />
               <PieChartCard title="Asset status distribution" data={statusBreakdown.data} labels={statusBreakdown.labels} colors={statusBreakdown.colors} exportLabel="asset-status" />
               <LineChartCard title="Allocation trend" data={trendData.data} labels={trendData.labels} exportLabel="allocation-trend" />
-              <BarChartCard title="Department allocation summary" data={departmentData} labels={INITIAL_DEPARTMENTS.map((department) => department.name)} exportLabel="department-allocation" />
-              <BarChartCard title="Maintenance frequency" data={maintenanceData} labels={INITIAL_ASSETS.map((asset) => asset.name)} exportLabel="maintenance-frequency" />
+              <BarChartCard title="Department allocation summary" data={departmentData} labels={departments.map((d) => d.name)} exportLabel="department-allocation" />
+              <BarChartCard title="Maintenance frequency" data={maintenanceData} labels={assets.map((a) => a.name)} exportLabel="maintenance-frequency" />
 
               <div className="report-card">
                 <div className="report-card-header">

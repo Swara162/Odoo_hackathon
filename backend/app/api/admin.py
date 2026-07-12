@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
+from app.api.dependencies import get_current_user
 from app.api.role_checker import RoleChecker
 
 from app.models.user import User, UserRole
@@ -34,9 +35,25 @@ def admin_dashboard(
 @router.get("/employees")
 def employee_directory(
     db: Session = Depends(get_db),
-    current_user=Depends(allow_admin)
+    current_user=Depends(get_current_user)
 ):
     return db.query(User).all()
+
+
+@router.get("/departments")
+def get_departments(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return db.query(Department).all()
+
+
+@router.get("/categories")
+def get_categories(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    return db.query(AssetCategory).all()
 
 
 @router.post("/departments")

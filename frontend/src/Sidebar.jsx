@@ -1,22 +1,37 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
+import {
+  LayoutDashboard,
+  Building2,
+  Package,
+  ArrowLeftRight,
+  CalendarCheck,
+  Wrench,
+  ClipboardCheck,
+  BarChart2,
+  Bell,
+  LogOut,
+  Box,
+} from 'lucide-react';
 import './Sidebar.css';
 
 const navItems = [
-  { label: 'Dashboard',          icon: 'ti-layout-dashboard', path: '/dashboard' },
-  { label: 'Organization Setup', icon: 'ti-building',         path: '/organization' },
-  { label: 'Assets',             icon: 'ti-package',          path: '/assets' },
-  { label: 'Allocation',         icon: 'ti-arrows-exchange',  path: '/allocation' },
-  { label: 'Bookings',           icon: 'ti-calendar-event',   path: '/bookings' },
-  { label: 'Maintenance',        icon: 'ti-tool',             path: '/maintenance' },
-  { label: 'Audit',              icon: 'ti-clipboard-check',  path: '/audit' },
-  { label: 'Reports',            icon: 'ti-chart-bar',        path: '/reports' },
-  { label: 'Notifications',      icon: 'ti-bell',             path: '/notifications' },
+  { label: 'Dashboard',          Icon: LayoutDashboard,  path: '/dashboard' },
+  { label: 'Workspace Settings', Icon: Building2,         path: '/organization' },
+  { label: 'Assets',             Icon: Package,           path: '/assets' },
+  { label: 'Allocation',         Icon: ArrowLeftRight,    path: '/allocation' },
+  { label: 'Bookings',           Icon: CalendarCheck,     path: '/bookings' },
+  { label: 'Maintenance',        Icon: Wrench,            path: '/maintenance' },
+  { label: 'Audit',              Icon: ClipboardCheck,    path: '/audit' },
+  { label: 'Reports',            Icon: BarChart2,         path: '/reports' },
+  { label: 'Notifications',      Icon: Bell,              path: '/notifications' },
 ];
 
 export default function Sidebar({ user }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
 
   const isActive = (path) => location.pathname === path;
 
@@ -39,7 +54,7 @@ export default function Sidebar({ user }) {
   }[user?.role] || user?.role;
 
   function handleLogout() {
-    // TODO: POST /auth/logout — clear session/token
+    logout();
     navigate('/login');
   }
 
@@ -48,22 +63,22 @@ export default function Sidebar({ user }) {
       {/* Logo */}
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">
-          <i className="ti ti-cube" aria-hidden="true"></i>
+          <Box size={20} strokeWidth={2} />
         </div>
         <span className="sidebar-logo-name">AssetFlow</span>
       </div>
 
       {/* Navigation */}
       <nav className="sidebar-nav">
-        {navItems.map((item) => (
+        {navItems.map(({ label, Icon, path }) => (
           <button
-            key={item.path}
-            className={`sidebar-link ${isActive(item.path) ? 'active' : ''}`}
-            onClick={() => navigate(item.path)}
-            aria-current={isActive(item.path) ? 'page' : undefined}
+            key={path}
+            className={`sidebar-link ${isActive(path) ? 'active' : ''}`}
+            onClick={() => navigate(path)}
+            aria-current={isActive(path) ? 'page' : undefined}
           >
-            <i className={`ti ${item.icon}`} aria-hidden="true"></i>
-            <span className="sidebar-link-label">{item.label}</span>
+            <Icon size={18} strokeWidth={isActive(path) ? 2.5 : 2} aria-hidden="true" />
+            <span className="sidebar-link-label">{label}</span>
           </button>
         ))}
       </nav>
@@ -78,7 +93,7 @@ export default function Sidebar({ user }) {
           </div>
         </div>
         <button className="sidebar-logout-btn" onClick={handleLogout} aria-label="Log out">
-          <i className="ti ti-logout" aria-hidden="true"></i>
+          <LogOut size={18} strokeWidth={2} aria-hidden="true" />
           <span className="sidebar-link-label">Logout</span>
         </button>
       </div>

@@ -3,51 +3,9 @@ import Sidebar from './Sidebar';
 import './MaintenancePage.css';
 import './AppShell.css';
 
-const CURRENT_USER = {
-  id: 1,
-  full_name: 'Swara',
-  role: 'ASSET_MANAGER',
-};
-
-const INITIAL_ASSETS = [
-  { id: 1, name: 'MacBook Pro 16"', status: 'ALLOCATED' },
-  { id: 2, name: 'Dell Monitor 27"', status: 'AVAILABLE' },
-  { id: 3, name: 'Epson Projector', status: 'UNDER_MAINTENANCE' },
-];
-
-const INITIAL_REQUESTS = [
-  {
-    id: 1,
-    asset_id: 3,
-    reported_by: 5,
-    issue: 'Lamp replacement and calibration',
-    priority: 'HIGH',
-    technician_name: '',
-    status: 'PENDING',
-    photo_url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&q=80',
-    approved_by: null,
-    resolved_at: null,
-    remarks: '',
-  },
-  {
-    id: 2,
-    asset_id: 1,
-    reported_by: 4,
-    issue: 'Battery replacement',
-    priority: 'MEDIUM',
-    technician_name: 'Suresh K.',
-    status: 'IN_PROGRESS',
-    photo_url: '',
-    approved_by: 1,
-    resolved_at: null,
-    remarks: '',
-  },
-];
-
-const INITIAL_USERS = [
-  { id: 4, full_name: 'Anjali Verma' },
-  { id: 5, full_name: 'Siddharth Roy' },
-];
+import api from './api';
+import { useAuth } from './context/AuthContext';
+import { useToast } from './components/Toast';
 
 const STATUS_CLASS = {
   PENDING: 'status-amber',
@@ -58,11 +16,14 @@ const STATUS_CLASS = {
 };
 
 export default function MaintenancePage() {
-  const [requests, setRequests] = useState(INITIAL_REQUESTS);
-  const [assets, setAssets] = useState(INITIAL_ASSETS);
-  const [users] = useState(INITIAL_USERS);
+  const { user } = useAuth();
+  const toast = useToast();
+
+  const [requests, setRequests] = useState([]);
+  const [assets, setAssets] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedRequest, setSelectedRequest] = useState(INITIAL_REQUESTS[0]);
+  const [selectedRequest, setSelectedRequest] = useState(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [form, setForm] = useState({ asset_id: '', issue: '', priority: 'MEDIUM', photo_url: '' });
   const [errors, setErrors] = useState({});
@@ -71,8 +32,24 @@ export default function MaintenancePage() {
   const [resolutionNotes, setResolutionNotes] = useState('');
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setLoading(false), 700);
-    return () => window.clearTimeout(timer);
+    async function fetchData() {
+      try {
+        const [mntRes, astRes, usrRes] = await Promise.all([
+          api.get('/maintenance/').catch(() => ({ data: [] })),
+          api.get('/assets/'),
+          api.get('/admin/employees'),
+        ]);
+        setRequests(mntRes.data);
+        setAssets(astRes.data);
+        setUsers(usrRes.data);
+        if (mntRes.data.length > 0) setSelectedRequest(mntRes.data[0]);
+      } catch (err) {
+        toast.error('Failed to load maintenance data');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
   }, []);
 
   const visibleRequests = useMemo(() => {
@@ -90,61 +67,83 @@ export default function MaintenancePage() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!validateForm()) return;
 
-    const newRequest = {
-      id: Date.now(),
-      asset_id: Number(form.asset_id),
-      reported_by: CURRENT_USER.id,
-      issue: form.issue.trim(),
-      priority: form.priority,
-      technician_name: '',
-      status: 'PENDING',
-      photo_url: form.photo_url,
-      approved_by: null,
-      resolved_at: null,
-      remarks: '',
-    };
-    setRequests((prev) => [newRequest, ...prev]);
-    setSelectedRequest(newRequest);
-    setForm({ asset_id: '', issue: '', priority: 'MEDIUM', photo_url: '' });
-    setErrors({});
+    try {
+      const { data } = await api.post('/maintenance/', {
+        asset_id: Number(form.asset_id),
+        issue: form.issue.trim(),
+        priority: form.priority,
+        photo_url: form.photo_url || '',
+      });
+      setRequests((prev) => [data, ...prev]);
+      setSelectedRequest(data);
+      toast.success('Maintenance request raised');
+      setForm({ asset_id: '', issue: '', priority: 'MEDIUM', photo_url: '' });
+      setErrors({});
+    } catch (err) {
+      toast.error('Failed to submit maintenance request');
+    }
   };
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (!selectedRequest) return;
-    setRequests((prev) => prev.map((request) => (request.id === selectedRequest.id ? { ...request, status: 'APPROVED', approved_by: CURRENT_USER.id, remarks: approveNote.trim() } : request)));
-    setAssets((prev) => prev.map((asset) => (asset.id === selectedRequest.asset_id ? { ...asset, status: 'UNDER_MAINTENANCE' } : asset)));
-    setApproveNote('');
+    try {
+      await api.put(`/maintenance/${selectedRequest.id}/approve`, { remarks: approveNote.trim() });
+      setRequests((prev) => prev.map((r) => (r.id === selectedRequest.id ? { ...r, status: 'APPROVED', approved_by: user.id, remarks: approveNote.trim() } : r)));
+      setAssets((prev) => prev.map((a) => (a.id === selectedRequest.asset_id ? { ...a, status: 'UNDER_MAINTENANCE' } : a)));
+      setApproveNote('');
+      toast.success('Maintenance request approved');
+    } catch (err) {
+      toast.error('Failed to approve request');
+    }
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!selectedRequest) return;
-    setRequests((prev) => prev.map((request) => (request.id === selectedRequest.id ? { ...request, status: 'REJECTED', approved_by: CURRENT_USER.id, remarks: approveNote.trim() } : request)));
-    setApproveNote('');
+    try {
+      await api.put(`/maintenance/${selectedRequest.id}/reject`, { remarks: approveNote.trim() });
+      setRequests((prev) => prev.map((r) => (r.id === selectedRequest.id ? { ...r, status: 'REJECTED', approved_by: user.id, remarks: approveNote.trim() } : r)));
+      setApproveNote('');
+      toast.info('Maintenance request rejected');
+    } catch (err) {
+      toast.error('Failed to reject request');
+    }
   };
 
-  const handleAssignTechnician = () => {
+  const handleAssignTechnician = async () => {
     if (!selectedRequest) return;
-    setRequests((prev) => prev.map((request) => (request.id === selectedRequest.id ? { ...request, technician_name: technicianName.trim(), status: 'IN_PROGRESS' } : request)));
-    setTechnicianName('');
+    try {
+      await api.put(`/maintenance/${selectedRequest.id}/assign`, { technician_name: technicianName.trim() });
+      setRequests((prev) => prev.map((r) => (r.id === selectedRequest.id ? { ...r, technician_name: technicianName.trim(), status: 'IN_PROGRESS' } : r)));
+      setTechnicianName('');
+      toast.success('Technician assigned');
+    } catch (err) {
+      toast.error('Failed to assign technician');
+    }
   };
 
-  const handleResolve = () => {
+  const handleResolve = async () => {
     if (!selectedRequest) return;
-    setRequests((prev) => prev.map((request) => (request.id === selectedRequest.id ? { ...request, status: 'RESOLVED', resolved_at: new Date().toISOString().split('T')[0], remarks: resolutionNotes.trim() } : request)));
-    setAssets((prev) => prev.map((asset) => (asset.id === selectedRequest.asset_id ? { ...asset, status: 'AVAILABLE' } : asset)));
-    setResolutionNotes('');
+    try {
+      await api.put(`/maintenance/${selectedRequest.id}/resolve`, { remarks: resolutionNotes.trim() });
+      setRequests((prev) => prev.map((r) => (r.id === selectedRequest.id ? { ...r, status: 'RESOLVED', resolved_at: new Date().toISOString().split('T')[0], remarks: resolutionNotes.trim() } : r)));
+      setAssets((prev) => prev.map((a) => (a.id === selectedRequest.asset_id ? { ...a, status: 'AVAILABLE' } : a)));
+      setResolutionNotes('');
+      toast.success('Maintenance resolved');
+    } catch (err) {
+      toast.error('Failed to resolve request');
+    }
   };
 
-  const resolveReporter = (userId) => users.find((user) => user.id === userId)?.full_name || '—';
-  const assetName = (assetId) => assets.find((asset) => asset.id === assetId)?.name || '—';
+  const resolveReporter = (userId) => users.find((u) => u.id === userId)?.full_name || '—';
+  const assetName = (assetId) => assets.find((a) => a.id === assetId)?.name || '—';
 
   return (
     <div className="app-shell">
-      <Sidebar user={CURRENT_USER} />
+      <Sidebar user={user} />
       <div className="app-content">
         <main className="maintenance-page">
           <header className="maintenance-topbar">
@@ -245,7 +244,15 @@ export default function MaintenancePage() {
                           <div><strong>Reporter</strong><span>{resolveReporter(selectedRequest.reported_by)}</span></div>
                           <div><strong>Priority</strong><span>{selectedRequest.priority}</span></div>
                           <div><strong>Technician</strong><span>{selectedRequest.technician_name || 'Unassigned'}</span></div>
+                          {selectedRequest.resolved_at && (
+                            <div><strong>Resolved At</strong><span>{selectedRequest.resolved_at}</span></div>
+                          )}
                         </div>
+                        {selectedRequest.remarks && (
+                          <div className="detail-metrics" style={{ marginTop: '0', gridTemplateColumns: '1fr' }}>
+                            <div><strong>Remarks</strong><span style={{ fontWeight: 'normal' }}>{selectedRequest.remarks}</span></div>
+                          </div>
+                        )}
                       </div>
 
                       {CURRENT_USER.role === 'ASSET_MANAGER' && selectedRequest.status === 'PENDING' && (

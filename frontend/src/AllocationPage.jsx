@@ -4,66 +4,9 @@ import { formatDisplayDate } from './utils/dateFormat';
 import './AllocationPage.css';
 import './AppShell.css';
 
-const CURRENT_USER = {
-  id: 1,
-  full_name: 'Swara',
-  role: 'ADMIN',
-};
-
-const INITIAL_USERS = [
-  { id: 1, full_name: 'Swara' },
-  { id: 2, full_name: 'Priya Sharma' },
-  { id: 3, full_name: 'Ravi Menon' },
-  { id: 4, full_name: 'Anjali Verma' },
-  { id: 5, full_name: 'Siddharth Roy' },
-  { id: 6, full_name: 'Meera Nair' },
-];
-
-const INITIAL_ASSETS = [
-  { id: 1, name: 'MacBook Pro 16"', asset_tag: 'AF-0001', status: 'ALLOCATED' },
-  { id: 2, name: 'Dell Monitor 27"', asset_tag: 'AF-0002', status: 'AVAILABLE' },
-  { id: 3, name: 'Epson Projector', asset_tag: 'AF-0003', status: 'UNDER_MAINTENANCE' },
-  { id: 4, name: 'Ergonomic Chair', asset_tag: 'AF-0004', status: 'AVAILABLE' },
-];
-
-const INITIAL_ALLOCATIONS = [
-  {
-    id: 1,
-    asset_id: 1,
-    employee_id: 4,
-    allocated_by: 1,
-    allocated_at: '2024-06-15',
-    expected_return: '2024-07-10',
-    returned_at: null,
-    return_notes: '',
-    allocation_status: 'ACTIVE',
-  },
-  {
-    id: 2,
-    asset_id: 2,
-    employee_id: 2,
-    allocated_by: 1,
-    allocated_at: '2024-06-20',
-    expected_return: '2024-07-02',
-    returned_at: '2024-06-28',
-    return_notes: 'Returned after use',
-    allocation_status: 'RETURNED',
-  },
-];
-
-const INITIAL_TRANSFER_REQUESTS = [
-  {
-    id: 1,
-    asset_id: 1,
-    from_employee: 4,
-    to_employee: 2,
-    requested_by: 4,
-    approved_by: null,
-    status: 'PENDING',
-    remarks: 'Need this for a new project',
-    requested_at: '2024-06-30',
-  },
-];
+import api from './api';
+import { useAuth } from './context/AuthContext';
+import { useToast } from './components/Toast';
 
 const STATUS_CLASS = {
   ACTIVE: 'status-blue',
@@ -72,10 +15,13 @@ const STATUS_CLASS = {
 };
 
 export default function AllocationPage() {
-  const [assets, setAssets] = useState(INITIAL_ASSETS);
-  const [allocations, setAllocations] = useState(INITIAL_ALLOCATIONS);
-  const [transferRequests, setTransferRequests] = useState(INITIAL_TRANSFER_REQUESTS);
-  const [users] = useState(INITIAL_USERS);
+  const { user } = useAuth();
+  const toast = useToast();
+
+  const [assets, setAssets] = useState([]);
+  const [allocations, setAllocations] = useState([]);
+  const [transferRequests, setTransferRequests] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAllocateModal, setShowAllocateModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -90,8 +36,25 @@ export default function AllocationPage() {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setLoading(false), 700);
-    return () => window.clearTimeout(timer);
+    async function fetchData() {
+      try {
+        const [astRes, allocRes, transRes, usrRes] = await Promise.all([
+          api.get('/assets/'),
+          api.get('/allocations/').catch(() => ({ data: [] })),
+          api.get('/allocations/transfers').catch(() => ({ data: [] })),
+          api.get('/admin/employees')
+        ]);
+        setAssets(astRes.data);
+        setAllocations(allocRes.data);
+        setTransferRequests(transRes.data);
+        setUsers(usrRes.data);
+      } catch (err) {
+        toast.error('Failed to load allocation data');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
   }, []);
 
   const activeAllocations = useMemo(() => {
@@ -135,58 +98,57 @@ export default function AllocationPage() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleAllocateSubmit = (event) => {
+  const handleAllocateSubmit = async (event) => {
     event.preventDefault();
     if (!validateAllocate()) return;
 
     const assetId = Number(form.asset_id);
     const activeAllocation = allocations.find((allocation) => allocation.asset_id === assetId && allocation.allocation_status === 'ACTIVE');
     if (activeAllocation) {
-      const holderName = users.find((user) => user.id === activeAllocation.employee_id)?.full_name || 'the current holder';
+      const holderName = users.find((u) => u.id === activeAllocation.employee_id)?.full_name || 'the current holder';
       setActiveHolderWarning({ assetId, holderName });
       setShowAllocateModal(false);
       openTransferModal(assetId, activeAllocation.employee_id);
       return;
     }
 
-    const newAllocation = {
-      id: Date.now(),
-      asset_id: assetId,
-      employee_id: Number(form.employee_id),
-      allocated_by: CURRENT_USER.id,
-      allocated_at: new Date().toISOString().split('T')[0],
-      expected_return: form.expected_return,
-      returned_at: null,
-      return_notes: '',
-      allocation_status: 'ACTIVE',
-    };
-
-    setAllocations((prev) => [newAllocation, ...prev]);
-    setAssets((prev) => prev.map((asset) => (asset.id === assetId ? { ...asset, status: 'ALLOCATED' } : asset)));
-    setShowAllocateModal(false);
-    setForm({ asset_id: '', employee_id: '', expected_return: '' });
+    try {
+      const payload = {
+        asset_id: assetId,
+        employee_id: Number(form.employee_id),
+        expected_return: form.expected_return,
+      };
+      const { data } = await api.post('/allocations/', payload);
+      setAllocations((prev) => [data, ...prev]);
+      setAssets((prev) => prev.map((asset) => (asset.id === assetId ? { ...asset, status: 'ALLOCATED' } : asset)));
+      toast.success('Asset allocated successfully');
+      setShowAllocateModal(false);
+      setForm({ asset_id: '', employee_id: '', expected_return: '' });
+    } catch (err) {
+      toast.error('Failed to allocate asset');
+    }
   };
 
-  const handleTransferSubmit = (event) => {
+  const handleTransferSubmit = async (event) => {
     event.preventDefault();
     if (!validateTransfer()) return;
 
-    const newRequest = {
-      id: Date.now(),
-      asset_id: Number(transferForm.asset_id),
-      from_employee: Number(transferForm.from_employee),
-      to_employee: Number(transferForm.to_employee),
-      requested_by: CURRENT_USER.id,
-      approved_by: null,
-      status: 'PENDING',
-      remarks: transferForm.remarks.trim(),
-      requested_at: new Date().toISOString().split('T')[0],
-    };
-
-    setTransferRequests((prev) => [newRequest, ...prev]);
-    setTransferForm({ asset_id: '', from_employee: '', to_employee: '', remarks: '' });
-    setShowTransferModal(false);
-    setActiveHolderWarning(null);
+    try {
+      const payload = {
+        asset_id: Number(transferForm.asset_id),
+        from_employee: Number(transferForm.from_employee),
+        to_employee: Number(transferForm.to_employee),
+        remarks: transferForm.remarks.trim(),
+      };
+      const { data } = await api.post('/allocations/transfer', payload);
+      setTransferRequests((prev) => [data, ...prev]);
+      toast.success('Transfer requested successfully');
+      setTransferForm({ asset_id: '', from_employee: '', to_employee: '', remarks: '' });
+      setShowTransferModal(false);
+      setActiveHolderWarning(null);
+    } catch (err) {
+      toast.error('Failed to request transfer');
+    }
   };
 
   const openReviewModal = (request) => {
@@ -194,35 +156,42 @@ export default function AllocationPage() {
     setShowReviewModal(true);
   };
 
-  const handleReview = (status) => {
+  const handleReview = async (status) => {
     if (!reviewRequest) return;
-
     const nextStatus = status === 'APPROVED' ? 'APPROVED' : 'REJECTED';
-    setTransferRequests((prev) => prev.map((request) => (request.id === reviewRequest.id ? { ...request, status: nextStatus, approved_by: CURRENT_USER.id } : request)));
 
-    if (status === 'APPROVED') {
-      const assetId = reviewRequest.asset_id;
-      const oldAllocation = allocations.find((allocation) => allocation.asset_id === assetId && allocation.allocation_status === 'ACTIVE');
-      if (oldAllocation) {
-        setAllocations((prev) => [
-          ...prev.map((allocation) => (allocation.id === oldAllocation.id ? { ...allocation, allocation_status: 'RETURNED', returned_at: new Date().toISOString().split('T')[0], return_notes: 'Transferred to another employee' } : allocation)),
-          {
-            id: Date.now() + 1,
-            asset_id: assetId,
-            employee_id: reviewRequest.to_employee,
-            allocated_by: CURRENT_USER.id,
-            allocated_at: new Date().toISOString().split('T')[0],
-            expected_return: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
-            returned_at: null,
-            return_notes: '',
-            allocation_status: 'ACTIVE',
-          },
-        ]);
+    try {
+      await api.put(`/allocations/transfer/${reviewRequest.id}/review`, { status: nextStatus });
+      setTransferRequests((prev) => prev.map((req) => (req.id === reviewRequest.id ? { ...req, status: nextStatus, approved_by: user.id } : req)));
+
+      if (status === 'APPROVED') {
+        const assetId = reviewRequest.asset_id;
+        const oldAllocation = allocations.find((alloc) => alloc.asset_id === assetId && alloc.allocation_status === 'ACTIVE');
+        if (oldAllocation) {
+          setAllocations((prev) => [
+            ...prev.map((a) => (a.id === oldAllocation.id ? { ...a, allocation_status: 'RETURNED', returned_at: new Date().toISOString().split('T')[0], return_notes: 'Transferred' } : a)),
+            {
+              id: Date.now() + 1,
+              asset_id: assetId,
+              employee_id: reviewRequest.to_employee,
+              allocated_by: user.id,
+              allocated_at: new Date().toISOString().split('T')[0],
+              expected_return: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+              returned_at: null,
+              return_notes: '',
+              allocation_status: 'ACTIVE',
+            },
+          ]);
+        }
+        setAssets((prev) => prev.map((asset) => (asset.id === assetId ? { ...asset, status: 'ALLOCATED' } : asset)));
+        toast.success('Transfer approved');
+      } else {
+        toast.info('Transfer rejected');
       }
-      setAssets((prev) => prev.map((asset) => (asset.id === assetId ? { ...asset, status: 'ALLOCATED' } : asset)));
+      setShowReviewModal(false);
+    } catch (err) {
+      toast.error('Failed to review transfer');
     }
-
-    setShowReviewModal(false);
   };
 
   const openReturnModal = (allocation) => {
@@ -231,15 +200,21 @@ export default function AllocationPage() {
     setShowReturnModal(true);
   };
 
-  const handleReturnSubmit = (event) => {
+  const handleReturnSubmit = async (event) => {
     event.preventDefault();
     if (!selectedAllocation) return;
 
-    setAllocations((prev) => prev.map((allocation) => (allocation.id === selectedAllocation.id ? { ...allocation, allocation_status: 'RETURNED', returned_at: new Date().toISOString().split('T')[0], return_notes: returnForm.return_notes.trim() } : allocation)));
-    setAssets((prev) => prev.map((asset) => (asset.id === selectedAllocation.asset_id ? { ...asset, status: 'AVAILABLE' } : asset)));
-    setShowReturnModal(false);
-    setReturnForm({ return_notes: '' });
-    setSelectedAllocation(null);
+    try {
+      await api.post(`/allocations/${selectedAllocation.id}/return`, { return_notes: returnForm.return_notes.trim() });
+      setAllocations((prev) => prev.map((a) => (a.id === selectedAllocation.id ? { ...a, allocation_status: 'RETURNED', returned_at: new Date().toISOString().split('T')[0], return_notes: returnForm.return_notes.trim() } : a)));
+      setAssets((prev) => prev.map((asset) => (asset.id === selectedAllocation.asset_id ? { ...asset, status: 'AVAILABLE' } : asset)));
+      toast.success('Asset returned successfully');
+      setShowReturnModal(false);
+      setReturnForm({ return_notes: '' });
+      setSelectedAllocation(null);
+    } catch (err) {
+      toast.error('Failed to return asset');
+    }
   };
 
   const getAssetName = (assetId) => assets.find((asset) => asset.id === assetId)?.name || '—';
@@ -247,7 +222,7 @@ export default function AllocationPage() {
 
   return (
     <div className="app-shell">
-      <Sidebar user={CURRENT_USER} />
+      <Sidebar user={user} />
 
       <div className="app-content">
         <main className="allocation-page">

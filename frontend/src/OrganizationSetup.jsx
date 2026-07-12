@@ -1,31 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import AppShell from './AppShell';
+import api from './api';
+import { useToast } from './components/Toast';
 import './OrganizationSetup.css';
 
-// ─────────────────────────────────────────────
-// Mock data — matches DB schema field names exactly
-// ─────────────────────────────────────────────
 
-const MOCK_USERS = [
-  { id: 1, full_name: 'Admin User',    email: 'admin@company.com',   role: 'ADMIN',           department_id: null, phone: '+91 98000 00001', is_active: true },
-  { id: 2, full_name: 'Priya Sharma',  email: 'priya@company.com',   role: 'DEPARTMENT_HEAD', department_id: 1,    phone: '+91 98000 00002', is_active: true },
-  { id: 3, full_name: 'Ravi Menon',    email: 'ravi@company.com',    role: 'ASSET_MANAGER',   department_id: 2,    phone: '+91 98000 00003', is_active: true },
-  { id: 4, full_name: 'Anjali Verma',  email: 'anjali@company.com',  role: 'EMPLOYEE',        department_id: 1,    phone: '+91 98000 00004', is_active: true },
-  { id: 5, full_name: 'Siddharth Roy', email: 'sid@company.com',     role: 'EMPLOYEE',        department_id: 3,    phone: '+91 98000 00005', is_active: false },
-  { id: 6, full_name: 'Meera Nair',    email: 'meera@company.com',   role: 'EMPLOYEE',        department_id: 2,    phone: '+91 98000 00006', is_active: true },
-];
-
-const MOCK_DEPARTMENTS = [
-  { id: 1, name: 'Engineering',  description: 'Software and infra teams', department_head_id: 2, is_active: true,  created_at: '2024-01-10' },
-  { id: 2, name: 'Operations',   description: 'Logistics and ops',        department_head_id: 3, is_active: true,  created_at: '2024-01-12' },
-  { id: 3, name: 'HR',           description: 'Human resources',          department_head_id: null, is_active: false, created_at: '2024-02-01' },
-];
-
-const MOCK_CATEGORIES = [
-  { id: 1, name: 'Laptops',        description: 'All laptop devices',       created_at: '2024-01-10' },
-  { id: 2, name: 'Projectors',     description: 'Projection equipment',     created_at: '2024-01-15' },
-  { id: 3, name: 'Office Chairs',  description: 'Ergonomic seating',        created_at: '2024-02-01' },
-];
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -99,12 +78,18 @@ function Pagination({ page, totalPages, setPage, total }) {
 // DEPARTMENTS TAB
 // ─────────────────────────────────────────────
 function DepartmentsTab({ users }) {
-  const [departments, setDepartments] = useState(MOCK_DEPARTMENTS);
+  const toast = useToast();
+  const [departments, setDepartments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [modal, setModal] = useState(null); // null | { mode: 'create'|'edit', data }
 
   const [form, setForm] = useState({ name: '', description: '', department_head_id: '', is_active: true });
+
+  useEffect(() => {
+    api.get('/admin/departments').then((r) => setDepartments(r.data)).catch(() => {}).finally(() => setLoading(false));
+  }, []);
 
   // ── Filtering ──
   const filtered = useMemo(() => {
@@ -127,44 +112,38 @@ function DepartmentsTab({ users }) {
     setForm({
       name: dept.name,
       description: dept.description || '',
-      department_head_id: dept.department_head_id ?? '',
       is_active: dept.is_active,
     });
     setModal({ mode: 'edit', id: dept.id });
   }
 
   function handleDeactivate(id) {
-    // TODO: PATCH /departments/:id { is_active: false }
-    setDepartments((prev) => prev.map((d) => d.id === id ? { ...d, is_active: false } : d));
+    api.put(`/admin/departments/${id}`, { is_active: false })
+      .then(() => setDepartments((prev) => prev.map((d) => d.id === id ? { ...d, is_active: false } : d)))
+      .catch(() => toast.error('Failed to deactivate department'));
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    if (modal.mode === 'create') {
-      // TODO: POST /departments { name, description, department_head_id, is_active }
-      const newDept = {
-        id: Date.now(),
-        name: form.name,
-        description: form.description,
-        department_head_id: form.department_head_id ? Number(form.department_head_id) : null,
-        is_active: form.is_active,
-        created_at: new Date().toISOString().split('T')[0],
-      };
-      setDepartments((prev) => [...prev, newDept]);
-    } else {
-      // TODO: PATCH /departments/:id { name, description, department_head_id, is_active }
-      setDepartments((prev) =>
-        prev.map((d) =>
-          d.id === modal.id
-            ? { ...d, name: form.name, description: form.description, department_head_id: form.department_head_id ? Number(form.department_head_id) : null, is_active: form.is_active }
-            : d
-        )
-      );
+    try {
+      if (modal.mode === 'create') {
+        const { data } = await api.post('/admin/departments', { name: form.name, description: form.description });
+        setDepartments((prev) => [...prev, data]);
+        toast.success('Department created');
+      } else {
+        const { data } = await api.put(`/admin/departments/${modal.id}`, { name: form.name, description: form.description, is_active: form.is_active });
+        setDepartments((prev) => prev.map((d) => d.id === modal.id ? data : d));
+        toast.success('Department updated');
+      }
+    } catch (err) {
+      toast.error('Failed to save department');
     }
     setModal(null);
   }
 
   const resolveHead = (id) => users.find((u) => u.id === id)?.full_name || '—';
+
+  if (loading) return <div className="org-empty">Loading departments…</div>;
 
   return (
     <>
@@ -197,7 +176,6 @@ function DepartmentsTab({ users }) {
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Head</th>
                 <th>Status</th>
                 <th>Created</th>
                 <th>Actions</th>
@@ -220,7 +198,6 @@ function DepartmentsTab({ users }) {
                       <div className="cell-primary">{dept.name}</div>
                       {dept.description && <div className="cell-secondary">{dept.description}</div>}
                     </td>
-                    <td>{resolveHead(dept.department_head_id)}</td>
                     <td><StatusChip active={dept.is_active} /></td>
                     <td>{formatDate(dept.created_at)}</td>
                     <td>
@@ -275,19 +252,6 @@ function DepartmentsTab({ users }) {
                     placeholder="Short description…"
                   />
                 </div>
-                <div className="form-field">
-                  <label htmlFor="dept-head">Department head</label>
-                  <select
-                    id="dept-head"
-                    value={form.department_head_id}
-                    onChange={(e) => setForm({ ...form, department_head_id: e.target.value })}
-                  >
-                    <option value="">— No head assigned —</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>{u.full_name}</option>
-                    ))}
-                  </select>
-                </div>
                 <div className="toggle-row">
                   <span className="toggle-label">Active</span>
                   <label className="toggle-switch">
@@ -318,10 +282,16 @@ function DepartmentsTab({ users }) {
 // CATEGORIES TAB
 // ─────────────────────────────────────────────
 function CategoriesTab() {
-  const [categories, setCategories] = useState(MOCK_CATEGORIES);
+  const toast = useToast();
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({ name: '', description: '' });
+
+  useEffect(() => {
+    api.get('/admin/categories').then((r) => setCategories(r.data)).catch(() => {}).finally(() => setLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -337,18 +307,19 @@ function CategoriesTab() {
     setModal(true);
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    // TODO: POST /categories { name, description }
-    const newCat = {
-      id: Date.now(),
-      name: form.name,
-      description: form.description,
-      created_at: new Date().toISOString().split('T')[0],
-    };
-    setCategories((prev) => [...prev, newCat]);
+    try {
+      const { data } = await api.post('/admin/categories', { name: form.name, description: form.description });
+      setCategories((prev) => [...prev, data]);
+      toast.success('Category created');
+    } catch (err) {
+      toast.error('Failed to create category');
+    }
     setModal(null);
   }
+
+  if (loading) return <div className="org-empty">Loading categories…</div>;
 
   return (
     <>
@@ -450,13 +421,19 @@ function CategoriesTab() {
 // EMPLOYEES TAB
 // ─────────────────────────────────────────────
 function EmployeesTab({ departments }) {
-  const [employees, setEmployees] = useState(MOCK_USERS);
+  const toast = useToast();
+  const [employees, setEmployees] = useState([]);
+  const [loadingEmps, setLoadingEmps] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [promoteModal, setPromoteModal] = useState(null); // { user }
   const [newRole, setNewRole] = useState('');
+
+  useEffect(() => {
+    api.get('/admin/employees').then((r) => setEmployees(r.data)).catch(() => {}).finally(() => setLoadingEmps(false));
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -479,15 +456,19 @@ function EmployeesTab({ departments }) {
     setPromoteModal({ user });
   }
 
-  function handlePromote(e) {
+  async function handlePromote(e) {
     e.preventDefault();
-    // TODO: PATCH /users/:id/role { role: newRole }
-    // IMPORTANT: Server must validate that role ≠ ADMIN before saving.
-    setEmployees((prev) =>
-      prev.map((u) => u.id === promoteModal.user.id ? { ...u, role: newRole } : u)
-    );
+    try {
+      await api.put(`/admin/promote/${promoteModal.user.id}`, { role: newRole });
+      setEmployees((prev) => prev.map((u) => u.id === promoteModal.user.id ? { ...u, role: newRole } : u));
+      toast.success('Role updated successfully');
+    } catch (err) {
+      toast.error('Failed to update role');
+    }
     setPromoteModal(null);
   }
+
+  if (loadingEmps) return <div className="org-empty">Loading employees…</div>;
 
   const resolveDept = (id) => departments.find((d) => d.id === id)?.name || '—';
 
@@ -636,22 +617,40 @@ const TABS = [
 
 export default function OrganizationSetup() {
   const [activeTab, setActiveTab] = useState('departments');
+  const [departments, setDepartments] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [counts, setCounts] = useState({ departments: 0, categories: 0, employees: 0 });
 
-  // Shared data — departments are needed in Employees tab to resolve dept names
-  const [departments] = useState(MOCK_DEPARTMENTS);
+  useEffect(() => {
+    async function fetchCounts() {
+      try {
+        const [depRes, catRes, usrRes] = await Promise.all([
+          api.get('/admin/departments'),
+          api.get('/admin/categories'),
+          api.get('/admin/employees'),
+        ]);
+        setDepartments(depRes.data);
+        setUsers(usrRes.data);
+        setCounts({
+          departments: depRes.data.length,
+          categories: catRes.data.length,
+          employees: usrRes.data.length,
+        });
+      } catch (err) {
+        console.error('Failed to load org counts');
+      }
+    }
+    fetchCounts();
+  }, []);
 
-  const tabCounts = {
-    departments: MOCK_DEPARTMENTS.length,
-    categories:  MOCK_CATEGORIES.length,
-    employees:   MOCK_USERS.length,
-  };
+  const tabCounts = counts;
 
   return (
-    <AppShell title="Organization Setup">
+    <AppShell title="Workspace Settings">
       {/* Page header */}
       <div className="org-page-header">
         <div>
-          <h1 className="org-page-title">Organization Setup</h1>
+          <h1 className="org-page-title">Workspace Settings</h1>
           <p className="org-page-subtitle">Manage departments, asset categories, and team members.</p>
         </div>
       </div>
@@ -674,7 +673,7 @@ export default function OrganizationSetup() {
       </div>
 
       {/* Tab panels */}
-      {activeTab === 'departments' && <DepartmentsTab users={MOCK_USERS} />}
+      {activeTab === 'departments' && <DepartmentsTab users={users} />}
       {activeTab === 'categories'  && <CategoriesTab />}
       {activeTab === 'employees'   && <EmployeesTab departments={departments} />}
     </AppShell>

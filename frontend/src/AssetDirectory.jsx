@@ -4,127 +4,9 @@ import { formatDisplayDate } from './utils/dateFormat';
 import './AssetDirectory.css';
 import './AppShell.css';
 
-const CURRENT_USER = {
-  id: 1,
-  full_name: 'Swara',
-  role: 'ADMIN',
-};
-
-const INITIAL_CATEGORIES = [
-  { id: 1, name: 'Laptop' },
-  { id: 2, name: 'Monitor' },
-  { id: 3, name: 'Projector' },
-  { id: 4, name: 'Furniture' },
-  { id: 5, name: 'Peripheral' },
-];
-
-const INITIAL_DEPARTMENTS = [
-  { id: 1, name: 'Engineering' },
-  { id: 2, name: 'Operations' },
-  { id: 3, name: 'HR' },
-];
-
-const INITIAL_USERS = [
-  { id: 1, full_name: 'Swara' },
-  { id: 2, full_name: 'Priya Sharma' },
-  { id: 3, full_name: 'Ravi Menon' },
-  { id: 4, full_name: 'Anjali Verma' },
-  { id: 5, full_name: 'Siddharth Roy' },
-];
-
-const INITIAL_ASSETS = [
-  {
-    id: 1,
-    asset_tag: 'AF-0001',
-    name: 'MacBook Pro 16"',
-    category_id: 1,
-    serial_number: 'SN-1001',
-    purchase_date: '2024-01-15',
-    purchase_cost: 189999,
-    location: 'HQ-01',
-    department_id: 1,
-    condition: 'GOOD',
-    status: 'ALLOCATED',
-    bookable: true,
-    image_url: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=160&q=80',
-    document_url: 'https://example.com/asset-1.pdf',
-  },
-  {
-    id: 2,
-    asset_tag: 'AF-0002',
-    name: 'Dell Monitor 27"',
-    category_id: 2,
-    serial_number: 'SN-1002',
-    purchase_date: '2024-01-20',
-    purchase_cost: 32000,
-    location: 'HQ-02',
-    department_id: 1,
-    condition: 'EXCELLENT',
-    status: 'AVAILABLE',
-    bookable: false,
-    image_url: 'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=160&q=80',
-    document_url: 'https://example.com/asset-2.pdf',
-  },
-  {
-    id: 3,
-    asset_tag: 'AF-0003',
-    name: 'Epson Projector',
-    category_id: 3,
-    serial_number: 'SN-1003',
-    purchase_date: '2024-02-05',
-    purchase_cost: 65000,
-    location: 'HQ-10',
-    department_id: 2,
-    condition: 'GOOD',
-    status: 'UNDER_MAINTENANCE',
-    bookable: true,
-    image_url: 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=160&q=80',
-    document_url: 'https://example.com/asset-3.pdf',
-  },
-  {
-    id: 4,
-    asset_tag: 'AF-0004',
-    name: 'Ergonomic Chair',
-    category_id: 4,
-    serial_number: 'SN-1004',
-    purchase_date: '2024-02-10',
-    purchase_cost: 25000,
-    location: 'HQ-03',
-    department_id: 2,
-    condition: 'FAIR',
-    status: 'AVAILABLE',
-    bookable: true,
-    image_url: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=160&q=80',
-    document_url: 'https://example.com/asset-4.pdf',
-  },
-];
-
-const INITIAL_ALLOCATIONS = [
-  {
-    id: 1,
-    asset_id: 1,
-    employee_id: 4,
-    allocated_by: 1,
-    allocated_at: '2024-06-15',
-    expected_return: '2024-07-10',
-    returned_at: null,
-    return_notes: '',
-    allocation_status: 'ACTIVE',
-  },
-];
-
-const INITIAL_MAINTENANCE = [
-  {
-    id: 1,
-    asset_id: 3,
-    requested_by: 5,
-    technician_name: 'Suresh K.',
-    priority: 'HIGH',
-    status: 'IN_PROGRESS',
-    description: 'Lamp replacement and calibration',
-    created_at: '2024-06-28',
-  },
-];
+import api from './api';
+import { useAuth } from './context/AuthContext';
+import { useToast } from './components/Toast';
 
 const STATUS_CLASS = {
   AVAILABLE: 'status-green',
@@ -147,19 +29,23 @@ const EMPTY_FORM = {
   image_url: '',
   document_url: '',
   asset_tag: '',
+  health_score: 100,
 };
 
 export default function AssetDirectory() {
-  const [assets, setAssets] = useState(INITIAL_ASSETS);
-  const [categories] = useState(INITIAL_CATEGORIES);
-  const [departments] = useState(INITIAL_DEPARTMENTS);
-  const [users] = useState(INITIAL_USERS);
-  const [allocations] = useState(INITIAL_ALLOCATIONS);
-  const [maintenanceRequests] = useState(INITIAL_MAINTENANCE);
+  const { user } = useAuth();
+  const toast = useToast();
+
+  const [assets, setAssets] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingAssetId, setEditingAssetId] = useState(null);
   const [selectedAsset, setSelectedAsset] = useState(null);
+  const [allocationHistory, setAllocationHistory] = useState([]);
+  const [maintenanceHistory, setMaintenanceHistory] = useState([]);
   const [viewMode, setViewMode] = useState('table');
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
@@ -172,8 +58,25 @@ export default function AssetDirectory() {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setLoading(false), 700);
-    return () => window.clearTimeout(timer);
+    async function fetchData() {
+      try {
+        const [astRes, catRes, depRes, usrRes] = await Promise.all([
+          api.get('/assets/'),
+          api.get('/admin/categories'),
+          api.get('/admin/departments'),
+          api.get('/admin/employees')
+        ]);
+        setAssets(astRes.data);
+        setCategories(catRes.data);
+        setDepartments(depRes.data);
+        setUsers(usrRes.data);
+      } catch (err) {
+        toast.error('Failed to load asset directory data');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
   }, []);
 
   const filteredAssets = useMemo(() => {
@@ -211,6 +114,7 @@ export default function AssetDirectory() {
       image_url: asset.image_url || '',
       document_url: asset.document_url || '',
       asset_tag: asset.asset_tag || '',
+      health_score: asset.health_score ?? 100,
     });
     setErrors({});
     setShowForm(true);
@@ -246,12 +150,11 @@ export default function AssetDirectory() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const submitAsset = (event) => {
+  const submitAsset = async (event) => {
     event.preventDefault();
     if (!validateForm()) return;
 
-    const assetPayload = {
-      asset_tag: form.asset_tag || `AF-${String(assets.length + 1).padStart(4, '0')}`,
+    const payload = {
       name: form.name.trim(),
       category_id: Number(form.category_id),
       serial_number: form.serial_number.trim(),
@@ -260,39 +163,49 @@ export default function AssetDirectory() {
       location: form.location.trim(),
       department_id: Number(form.department_id),
       condition: form.condition,
-      status: editingAssetId ? (assets.find((asset) => asset.id === editingAssetId)?.status || 'AVAILABLE') : 'AVAILABLE',
-      bookable: Boolean(form.bookable),
-      image_url: form.image_url || 'https://placehold.co/96x96/png?text=Asset',
-      document_url: form.document_url || '',
+      is_bookable: Boolean(form.bookable),
+      status: form.status || 'AVAILABLE',
     };
 
-    if (editingAssetId) {
-      const updatedAsset = { ...assets.find((asset) => asset.id === editingAssetId), ...assetPayload, id: editingAssetId };
-      setAssets((prev) => prev.map((asset) => (asset.id === editingAssetId ? updatedAsset : asset)));
-      setSelectedAsset(updatedAsset);
-    } else {
-      const newAsset = { id: Date.now(), ...assetPayload };
-      setAssets((prev) => [newAsset, ...prev]);
-      setSelectedAsset(newAsset);
+    try {
+      if (editingAssetId) {
+        const { data } = await api.put(`/assets/${editingAssetId}`, payload);
+        setAssets((prev) => prev.map((ast) => (ast.id === editingAssetId ? data : ast)));
+        setSelectedAsset(data);
+        toast.success('Asset updated successfully');
+      } else {
+        const { data } = await api.post('/assets/', payload);
+        setAssets((prev) => [data, ...prev]);
+        setSelectedAsset(data);
+        toast.success('Asset registered successfully');
+      }
+      setShowForm(false);
+      setEditingAssetId(null);
+      setForm(EMPTY_FORM);
+    } catch (err) {
+      toast.error('Failed to save asset');
     }
-
-    setShowForm(false);
-    setEditingAssetId(null);
-    setForm(EMPTY_FORM);
   };
 
-  const getUserName = (userId) => users.find((user) => user.id === userId)?.full_name || '—';
-  const selectedAssetDetails = selectedAsset ? assets.find((asset) => asset.id === selectedAsset.id) || selectedAsset : null;
-  const allocationHistory = selectedAssetDetails
-    ? allocations.filter((allocation) => allocation.asset_id === selectedAssetDetails.id)
-    : [];
-  const maintenanceHistory = selectedAssetDetails
-    ? maintenanceRequests.filter((request) => request.asset_id === selectedAssetDetails.id)
-    : [];
+  const handleSelectAsset = async (asset) => {
+    setSelectedAsset(asset);
+    try {
+      const { data } = await api.get(`/assets/${asset.id}/history`);
+      setAllocationHistory(data.allocations || []);
+      setMaintenanceHistory(data.maintenance_requests || []);
+    } catch (err) {
+      console.error(err);
+      setAllocationHistory([]);
+      setMaintenanceHistory([]);
+    }
+  };
+
+  const getUserName = (userId) => users.find((u) => u.id === userId)?.full_name || '—';
+  const selectedAssetDetails = selectedAsset ? assets.find((a) => a.id === selectedAsset.id) || selectedAsset : null;
 
   return (
     <div className="app-shell">
-      <Sidebar user={CURRENT_USER} />
+      <Sidebar user={user} />
 
       <div className="app-content">
         <main className="asset-page">
@@ -406,7 +319,7 @@ export default function AssetDirectory() {
                     </thead>
                     <tbody>
                       {filteredAssets.map((asset) => (
-                        <tr key={asset.id} onClick={() => setSelectedAsset(asset)} className="asset-row">
+                        <tr key={asset.id} onClick={() => handleSelectAsset(asset)} className="asset-row">
                           <td>
                             <div className="asset-cell-main">
                               <img src={asset.image_url || 'https://placehold.co/56x56/png?text=Asset'} alt="" className="asset-thumb" />
@@ -431,7 +344,7 @@ export default function AssetDirectory() {
               ) : (
                 <div className="asset-card-grid">
                   {filteredAssets.map((asset) => (
-                    <button key={asset.id} className="asset-card" onClick={() => setSelectedAsset(asset)}>
+                    <button key={asset.id} className="asset-card" onClick={() => handleSelectAsset(asset)}>
                       <img src={asset.image_url || 'https://placehold.co/96x96/png?text=Asset'} alt="" className="asset-card-thumb" />
                       <div className="asset-card-body">
                         <div className="asset-card-title-row">
@@ -502,6 +415,10 @@ export default function AssetDirectory() {
                     <div>
                       <span className="asset-detail-label">Bookable</span>
                       <p>{selectedAssetDetails.bookable ? 'Yes' : 'No'}</p>
+                    </div>
+                    <div>
+                      <span className="asset-detail-label">Health Score</span>
+                      <p>{selectedAssetDetails.health_score ?? 100}/100</p>
                     </div>
                   </div>
 
@@ -642,6 +559,11 @@ export default function AssetDirectory() {
                     ))}
                   </select>
                   {errors.department_id && <small>{errors.department_id}</small>}
+                </label>
+
+                <label className="asset-form-field">
+                  <span>Health Score (0-100)</span>
+                  <input type="number" name="health_score" min="0" max="100" value={form.health_score} onChange={handleFormChange} />
                 </label>
 
                 <label className="asset-form-field asset-form-toggle">

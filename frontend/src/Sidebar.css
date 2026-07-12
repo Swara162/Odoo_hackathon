@@ -90,8 +90,7 @@
   color: #93c5fd;
 }
 
-.sidebar-link i {
-  font-size: 18px;
+.sidebar-link svg {
   flex-shrink: 0;
 }
 
@@ -170,7 +169,7 @@
 }
 .sidebar-logout-btn:hover { background: rgba(239,68,68,0.12); color: #fca5a5; }
 .sidebar-logout-btn:focus-visible { outline: 2px solid #3b82f6; outline-offset: -2px; }
-.sidebar-logout-btn i { font-size: 18px; flex-shrink: 0; }
+.sidebar-logout-btn svg { flex-shrink: 0; }
 
 /* ── Responsive: tablet icon-only mode ── */
 @media (max-width: 1024px) {
