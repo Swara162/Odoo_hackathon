@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import { formatDisplayDate } from './utils/dateFormat';
 import './Dashboard.css';
 import './AppShell.css';
 
@@ -362,7 +363,7 @@ export default function Dashboard() {
           </div>
           <div className="dash-topbar-right">
             <TopbarSearch />
-            <button className="dash-notif-btn" aria-label={`Notifications, ${unreadCount} unread`}>
+            <button className="dash-notif-btn" aria-label={`Notifications, ${unreadCount} unread`} onClick={() => navigate('/notifications')}>
               <i className="ti ti-bell" aria-hidden="true"></i>
               {unreadCount > 0 && <span className="dash-notif-badge">{unreadCount}</span>}
             </button>
@@ -411,7 +412,7 @@ export default function Dashboard() {
                           <i className="ti ti-alert-circle overdue-warn-icon" aria-hidden="true"></i>
                           <div className="overdue-info">
                             <div className="overdue-asset">{a.assetName}</div>
-                            <div className="overdue-meta">{a.employeeName} · Expected {new Date(a.expected_return).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</div>
+                            <div className="overdue-meta">{a.employeeName} · Expected {formatDisplayDate(a.expected_return)}</div>
                           </div>
                           <span className="overdue-days">{a.daysOverdue} days overdue</span>
                         </div>
@@ -426,7 +427,7 @@ export default function Dashboard() {
                 <h2 className="dash-section-title"><i className="ti ti-bolt" aria-hidden="true"></i> Quick Actions</h2>
                 <div className="quick-actions-grid" style={{ marginTop: 12 }}>
                   {/* TODO: Wire onClick to navigate('/assets/new') */}
-                  <button className="quick-action-card" onClick={() => { /* navigate('/assets/new') */ }}>
+                  <button className="quick-action-card" onClick={() => navigate('/assets')}>
                     <div className="qa-icon qa-icon-blue"><i className="ti ti-plus" aria-hidden="true"></i></div>
                     <div className="qa-content">
                       <div className="qa-title">Register Asset</div>
@@ -434,7 +435,7 @@ export default function Dashboard() {
                     </div>
                   </button>
                   {/* TODO: Wire onClick to navigate('/bookings/new') */}
-                  <button className="quick-action-card" onClick={() => { /* navigate('/bookings/new') */ }}>
+                  <button className="quick-action-card" onClick={() => navigate('/bookings')}>
                     <div className="qa-icon qa-icon-green"><i className="ti ti-calendar-plus" aria-hidden="true"></i></div>
                     <div className="qa-content">
                       <div className="qa-title">Book Resource</div>
@@ -442,7 +443,7 @@ export default function Dashboard() {
                     </div>
                   </button>
                   {/* TODO: Wire onClick to navigate('/maintenance/new') */}
-                  <button className="quick-action-card" onClick={() => { /* navigate('/maintenance/new') */ }}>
+                  <button className="quick-action-card" onClick={() => navigate('/maintenance')}>
                     <div className="qa-icon qa-icon-amber"><i className="ti ti-tools" aria-hidden="true"></i></div>
                     <div className="qa-content">
                       <div className="qa-title">Raise Maintenance Request</div>
@@ -458,7 +459,7 @@ export default function Dashboard() {
                 <section className="dash-card" aria-label="Recent activity">
                   <div className="dash-card-header">
                     <h2 className="dash-card-title"><i className="ti ti-list-details" aria-hidden="true"></i> Recent Activity</h2>
-                    <button className="dash-view-all" onClick={() => { /* TODO: navigate('/activity-logs') */ }}>View all</button>
+                    <button className="dash-view-all" onClick={() => navigate('/activity-logs')}>View all</button>
                   </div>
                   <div className="dash-card-body">
                     {recentActivity.length === 0 ? (
@@ -495,7 +496,7 @@ export default function Dashboard() {
                 <section className="dash-card" aria-label="Recent notifications">
                   <div className="dash-card-header">
                     <h2 className="dash-card-title"><i className="ti ti-bell" aria-hidden="true"></i> Recent Notifications</h2>
-                    <button className="dash-view-all" onClick={() => { /* TODO: navigate('/notifications') */ }}>View All</button>
+                    <button className="dash-view-all" onClick={() => navigate('/notifications')}>View All</button>
                   </div>
                   <div className="dash-card-body" style={{ paddingLeft: 28 }}>
                     {recentNotifs.length === 0 ? (

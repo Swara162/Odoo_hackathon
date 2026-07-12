@@ -123,11 +123,64 @@
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  padding: 12px 0;
-  border-bottom: 1px solid #f3f4f6;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #fff;
 }
 
-.booking-list-item:last-child { border-bottom: none; }
+.booking-list-item-blue {
+  background: linear-gradient(90deg, #eff6ff 0%, #fff 100%);
+  border-color: #bfdbfe;
+}
+
+.booking-list-item-violet {
+  background: linear-gradient(90deg, #f5f3ff 0%, #fff 100%);
+  border-color: #ddd6fe;
+}
+
+.booking-list-item-green {
+  background: linear-gradient(90deg, #ecfdf5 0%, #fff 100%);
+  border-color: #a7f3d0;
+}
+
+.booking-list-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.booking-date-pill {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #111827;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.booking-time-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #4b5563;
+  font-weight: 600;
+}
+
+.booking-resource-title {
+  font-size: 15px;
+  color: #111827;
+}
+
+.booking-purpose {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
 
 .booking-list-actions {
   display: flex;

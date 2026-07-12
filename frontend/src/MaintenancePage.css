@@ -25,8 +25,15 @@
 
 .maintenance-grid {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
+  grid-template-columns: 1.15fr 0.95fr;
   gap: 18px;
+  align-items: start;
+}
+
+.maintenance-side-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .maintenance-panel {
@@ -35,6 +42,10 @@
   border-radius: 18px;
   padding: 18px;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+}
+
+.queue-panel {
+  min-height: 100%;
 }
 
 .maintenance-panel-header {
@@ -118,6 +129,12 @@
   flex-direction: column;
   gap: 10px;
   margin-top: 16px;
+}
+
+.detail-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .maintenance-form-field {
@@ -220,6 +237,10 @@
 @media (max-width: 900px) {
   .maintenance-grid {
     grid-template-columns: 1fr;
+  }
+
+  .maintenance-side-stack {
+    width: 100%;
   }
 }
 

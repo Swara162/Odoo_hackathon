@@ -453,6 +453,8 @@ function EmployeesTab({ departments }) {
   const [employees, setEmployees] = useState(MOCK_USERS);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
   const [promoteModal, setPromoteModal] = useState(null); // { user }
   const [newRole, setNewRole] = useState('');
 
@@ -464,9 +466,11 @@ function EmployeesTab({ departments }) {
         u.email.toLowerCase().includes(q) ||
         u.role.toLowerCase().includes(q);
       const matchStatus = statusFilter === 'all' || (statusFilter === 'active' ? u.is_active : !u.is_active);
-      return matchQ && matchStatus;
+      const matchRole = roleFilter === 'all' || u.role === roleFilter;
+      const matchDepartment = departmentFilter === 'all' || u.department_id === Number(departmentFilter);
+      return matchQ && matchStatus && matchRole && matchDepartment;
     });
-  }, [employees, search, statusFilter]);
+  }, [employees, search, statusFilter, roleFilter, departmentFilter]);
 
   const { page, setPage, totalPages, slice } = usePagination(filtered);
 
@@ -503,6 +507,19 @@ function EmployeesTab({ departments }) {
           <option value="all">All statuses</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
+        </select>
+        <select className="org-filter-select" value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}>
+          <option value="all">All roles</option>
+          <option value="ADMIN">Admin</option>
+          <option value="ASSET_MANAGER">Asset Manager</option>
+          <option value="DEPARTMENT_HEAD">Dept Head</option>
+          <option value="EMPLOYEE">Employee</option>
+        </select>
+        <select className="org-filter-select" value={departmentFilter} onChange={(e) => { setDepartmentFilter(e.target.value); setPage(1); }}>
+          <option value="all">All departments</option>
+          {departments.map((department) => (
+            <option key={department.id} value={department.id}>{department.name}</option>
+          ))}
         </select>
       </div>
 

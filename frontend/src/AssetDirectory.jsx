@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Sidebar from './Sidebar';
+import { formatDisplayDate } from './utils/dateFormat';
 import './AssetDirectory.css';
 import './AppShell.css';
 
@@ -21,6 +22,14 @@ const INITIAL_DEPARTMENTS = [
   { id: 1, name: 'Engineering' },
   { id: 2, name: 'Operations' },
   { id: 3, name: 'HR' },
+];
+
+const INITIAL_USERS = [
+  { id: 1, full_name: 'Swara' },
+  { id: 2, full_name: 'Priya Sharma' },
+  { id: 3, full_name: 'Ravi Menon' },
+  { id: 4, full_name: 'Anjali Verma' },
+  { id: 5, full_name: 'Siddharth Roy' },
 ];
 
 const INITIAL_ASSETS = [
@@ -144,10 +153,12 @@ export default function AssetDirectory() {
   const [assets, setAssets] = useState(INITIAL_ASSETS);
   const [categories] = useState(INITIAL_CATEGORIES);
   const [departments] = useState(INITIAL_DEPARTMENTS);
+  const [users] = useState(INITIAL_USERS);
   const [allocations] = useState(INITIAL_ALLOCATIONS);
   const [maintenanceRequests] = useState(INITIAL_MAINTENANCE);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingAssetId, setEditingAssetId] = useState(null);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [viewMode, setViewMode] = useState('table');
   const [searchTerm, setSearchTerm] = useState('');
@@ -179,7 +190,28 @@ export default function AssetDirectory() {
 
   const openCreateModal = () => {
     const nextTag = `AF-${String(assets.length + 1).padStart(4, '0')}`;
+    setEditingAssetId(null);
     setForm({ ...EMPTY_FORM, asset_tag: nextTag });
+    setErrors({});
+    setShowForm(true);
+  };
+
+  const openEditModal = (asset) => {
+    setEditingAssetId(asset.id);
+    setForm({
+      name: asset.name,
+      category_id: asset.category_id,
+      serial_number: asset.serial_number || '',
+      purchase_date: asset.purchase_date || '',
+      purchase_cost: asset.purchase_cost || '',
+      condition: asset.condition || '',
+      location: asset.location || '',
+      department_id: asset.department_id || '',
+      bookable: Boolean(asset.bookable),
+      image_url: asset.image_url || '',
+      document_url: asset.document_url || '',
+      asset_tag: asset.asset_tag || '',
+    });
     setErrors({});
     setShowForm(true);
   };
@@ -218,8 +250,7 @@ export default function AssetDirectory() {
     event.preventDefault();
     if (!validateForm()) return;
 
-    const newAsset = {
-      id: Date.now(),
+    const assetPayload = {
       asset_tag: form.asset_tag || `AF-${String(assets.length + 1).padStart(4, '0')}`,
       name: form.name.trim(),
       category_id: Number(form.category_id),
@@ -229,18 +260,28 @@ export default function AssetDirectory() {
       location: form.location.trim(),
       department_id: Number(form.department_id),
       condition: form.condition,
-      status: 'AVAILABLE',
+      status: editingAssetId ? (assets.find((asset) => asset.id === editingAssetId)?.status || 'AVAILABLE') : 'AVAILABLE',
       bookable: Boolean(form.bookable),
       image_url: form.image_url || 'https://placehold.co/96x96/png?text=Asset',
       document_url: form.document_url || '',
     };
 
-    setAssets((prev) => [newAsset, ...prev]);
+    if (editingAssetId) {
+      const updatedAsset = { ...assets.find((asset) => asset.id === editingAssetId), ...assetPayload, id: editingAssetId };
+      setAssets((prev) => prev.map((asset) => (asset.id === editingAssetId ? updatedAsset : asset)));
+      setSelectedAsset(updatedAsset);
+    } else {
+      const newAsset = { id: Date.now(), ...assetPayload };
+      setAssets((prev) => [newAsset, ...prev]);
+      setSelectedAsset(newAsset);
+    }
+
     setShowForm(false);
-    setSelectedAsset(newAsset);
+    setEditingAssetId(null);
     setForm(EMPTY_FORM);
   };
 
+  const getUserName = (userId) => users.find((user) => user.id === userId)?.full_name || '—';
   const selectedAssetDetails = selectedAsset ? assets.find((asset) => asset.id === selectedAsset.id) || selectedAsset : null;
   const allocationHistory = selectedAssetDetails
     ? allocations.filter((allocation) => allocation.asset_id === selectedAssetDetails.id)
@@ -267,15 +308,28 @@ export default function AssetDirectory() {
           </header>
 
           <section className="asset-toolbar" aria-label="Asset filters and search">
-            <div className="asset-search-wrap">
-              <i className="ti ti-search" aria-hidden="true"></i>
-              <input
-                className="asset-search-input"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search by tag, name or serial number"
-                aria-label="Search assets"
-              />
+            <div className="asset-toolbar-top">
+              <div className="asset-search-wrap">
+                <i className="ti ti-search" aria-hidden="true"></i>
+                <input
+                  className="asset-search-input"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search by tag, name or serial number"
+                  aria-label="Search assets"
+                />
+              </div>
+
+              <div className="asset-view-toggle" role="tablist" aria-label="Asset view mode">
+                <button className={viewMode === 'table' ? 'active' : ''} onClick={() => setViewMode('table')}>
+                  <i className="ti ti-list" aria-hidden="true"></i>
+                  Table
+                </button>
+                <button className={viewMode === 'cards' ? 'active' : ''} onClick={() => setViewMode('cards')}>
+                  <i className="ti ti-layout-grid" aria-hidden="true"></i>
+                  Cards
+                </button>
+              </div>
             </div>
 
             <div className="asset-filter-row">
@@ -326,17 +380,6 @@ export default function AssetDirectory() {
                   <option value="DAMAGED">DAMAGED</option>
                 </select>
               </label>
-            </div>
-
-            <div className="asset-view-toggle" role="tablist" aria-label="Asset view mode">
-              <button className={viewMode === 'table' ? 'active' : ''} onClick={() => setViewMode('table')}>
-                <i className="ti ti-list" aria-hidden="true"></i>
-                Table
-              </button>
-              <button className={viewMode === 'cards' ? 'active' : ''} onClick={() => setViewMode('cards')}>
-                <i className="ti ti-layout-grid" aria-hidden="true"></i>
-                Cards
-              </button>
             </div>
           </section>
 
@@ -414,7 +457,13 @@ export default function AssetDirectory() {
                       <p className="asset-eyebrow">Full record</p>
                       <h2>{selectedAssetDetails.name}</h2>
                     </div>
-                    <span className={`asset-status-chip ${STATUS_CLASS[selectedAssetDetails.status] || 'status-gray'}`}>{selectedAssetDetails.status}</span>
+                    <div className="asset-detail-actions">
+                      <button className="asset-edit-btn" onClick={() => openEditModal(selectedAssetDetails)}>
+                        <i className="ti ti-pencil" aria-hidden="true"></i>
+                        Edit asset
+                      </button>
+                      <span className={`asset-status-chip ${STATUS_CLASS[selectedAssetDetails.status] || 'status-gray'}`}>{selectedAssetDetails.status}</span>
+                    </div>
                   </div>
 
                   <div className="asset-detail-grid">
@@ -444,7 +493,7 @@ export default function AssetDirectory() {
                     </div>
                     <div>
                       <span className="asset-detail-label">Purchase date</span>
-                      <p>{selectedAssetDetails.purchase_date}</p>
+                      <p>{formatDisplayDate(selectedAssetDetails.purchase_date)}</p>
                     </div>
                     <div>
                       <span className="asset-detail-label">Purchase cost</span>
@@ -470,10 +519,10 @@ export default function AssetDirectory() {
                       allocationHistory.map((allocation) => (
                         <div className="asset-list-item" key={allocation.id}>
                           <div>
-                            <strong>Employee #{allocation.employee_id}</strong>
+                            <strong>{getUserName(allocation.employee_id)}</strong>
                             <p>Status: {allocation.allocation_status}</p>
                           </div>
-                          <span>{allocation.allocated_at}</span>
+                          <span>{formatDisplayDate(allocation.allocated_at)}</span>
                         </div>
                       ))
                     )}

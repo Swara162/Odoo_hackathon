@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Sidebar from './Sidebar';
+import { formatDisplayDate } from './utils/dateFormat';
 import './AllocationPage.css';
 import './AppShell.css';
 
@@ -306,8 +307,8 @@ export default function AllocationPage() {
                             <tr key={allocation.id}>
                               <td>{getAssetName(allocation.asset_id)}</td>
                               <td>{getUserName(allocation.employee_id)}</td>
-                              <td>{allocation.allocated_at}</td>
-                              <td>{allocation.expected_return}</td>
+                              <td>{formatDisplayDate(allocation.allocated_at)}</td>
+                              <td>{formatDisplayDate(allocation.expected_return)}</td>
                               <td>
                                 <span className={`allocation-status-chip ${STATUS_CLASS[statusLabel] || 'status-gray'}`}>{statusLabel}</span>
                               </td>
@@ -363,7 +364,7 @@ export default function AllocationPage() {
                                 {request.status}
                               </span>
                             </td>
-                            <td>{request.requested_at}</td>
+                            <td>{formatDisplayDate(request.requested_at)}</td>
                             <td>
                               {request.status === 'PENDING' ? (
                                 <button className="allocation-link-btn" onClick={() => openReviewModal(request)}>

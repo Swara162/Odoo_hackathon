@@ -12,7 +12,6 @@ const navItems = [
   { label: 'Audit',              icon: 'ti-clipboard-check',  path: '/audit' },
   { label: 'Reports',            icon: 'ti-chart-bar',        path: '/reports' },
   { label: 'Notifications',      icon: 'ti-bell',             path: '/notifications' },
-  { label: 'Activity Logs',      icon: 'ti-list-details',     path: '/activity-logs' },
 ];
 
 export default function Sidebar({ user }) {

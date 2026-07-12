@@ -63,6 +63,70 @@
   height: 220px;
 }
 
+.report-pie-wrap,
+.report-line-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 220px;
+}
+
+.report-pie-chart {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.report-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.report-legend-item {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.report-legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+}
+
+.report-line-chart {
+  width: 160px;
+  height: 140px;
+  flex-shrink: 0;
+}
+
+.report-line-axis {
+  stroke: #d1d5db;
+  stroke-width: 0.8;
+}
+
+.report-line-polyline {
+  fill: none;
+  stroke: #2563eb;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.report-axis-labels {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
 .heatmap-grid {
   display: grid;
   grid-template-columns: 70px repeat(7, minmax(0, 1fr));
@@ -117,6 +181,17 @@
 @media (max-width: 900px) {
   .reports-grid {
     grid-template-columns: 1fr;
+  }
+
+  .report-pie-wrap,
+  .report-line-wrap {
+    flex-direction: column;
+    align-items: flex-start;
+    height: auto;
+  }
+
+  .report-line-chart {
+    width: 100%;
   }
 }
 

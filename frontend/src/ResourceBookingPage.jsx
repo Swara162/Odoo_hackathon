@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Sidebar from './Sidebar';
+import { formatDisplayDate } from './utils/dateFormat';
 import './ResourceBookingPage.css';
 import './AppShell.css';
 
@@ -225,24 +226,34 @@ export default function ResourceBookingPage() {
                     <div className="empty-state">No bookings found</div>
                   ) : (
                     <div className="booking-list">
-                      {upcomingBookings.map((booking) => (
-                        <div key={booking.id} className="booking-list-item">
-                          <div>
-                            <strong>{booking.resource_name}</strong>
-                            <p>{booking.booking_date} · {booking.start_time}–{booking.end_time}</p>
-                            <p className="booking-muted">Booked by {resolveUserName(booking.booked_by)}</p>
+                      {upcomingBookings.map((booking) => {
+                        const toneClass = booking.resource_name.includes('Room')
+                          ? 'booking-list-item-blue'
+                          : booking.resource_name.includes('Projector')
+                            ? 'booking-list-item-violet'
+                            : 'booking-list-item-green';
+
+                        return (
+                          <div key={booking.id} className={`booking-list-item ${toneClass}`}>
+                            <div className="booking-list-item-content">
+                              <div className="booking-date-pill">{formatDisplayDate(booking.booking_date)}</div>
+                              <div className="booking-time-row"><i className="ti ti-clock" aria-hidden="true"></i> {booking.start_time} – {booking.end_time}</div>
+                              <strong className="booking-resource-title">{booking.resource_name}</strong>
+                              <p className="booking-purpose">{booking.purpose}</p>
+                              <p className="booking-muted">Booked by {resolveUserName(booking.booked_by)}</p>
+                            </div>
+                            <div className="booking-list-actions">
+                              <span className={`booking-status-chip ${booking.status === 'UPCOMING' ? 'status-blue' : booking.status === 'ONGOING' ? 'status-green' : booking.status === 'CANCELLED' ? 'status-red' : 'status-gray'}`}>{booking.status}</span>
+                              {booking.status !== 'CANCELLED' && (
+                                <>
+                                  <button className="booking-link-btn" onClick={() => handleCancel(booking.id)}>Cancel</button>
+                                  <button className="booking-link-btn" onClick={() => openForm(booking)}>Reschedule</button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                          <div className="booking-list-actions">
-                            <span className={`booking-status-chip ${booking.status === 'UPCOMING' ? 'status-blue' : booking.status === 'ONGOING' ? 'status-green' : booking.status === 'CANCELLED' ? 'status-red' : 'status-gray'}`}>{booking.status}</span>
-                            {booking.status !== 'CANCELLED' && (
-                              <>
-                                <button className="booking-link-btn" onClick={() => handleCancel(booking.id)}>Cancel</button>
-                                <button className="booking-link-btn" onClick={() => openForm(booking)}>Reschedule</button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

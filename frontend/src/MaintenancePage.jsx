@@ -158,7 +158,7 @@ export default function MaintenancePage() {
             <div className="maintenance-loading">Loading maintenance queue…</div>
           ) : (
             <div className="maintenance-grid">
-              <section className="maintenance-panel">
+              <section className="maintenance-panel queue-panel">
                 <div className="maintenance-panel-header">
                   <h2>Maintenance queue</h2>
                   <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
@@ -189,105 +189,113 @@ export default function MaintenancePage() {
                     ))}
                   </div>
                 )}
-
-                <form className="maintenance-form" onSubmit={handleSubmit}>
-                  <h3>Raise request</h3>
-                  <label className="maintenance-form-field">
-                    <span>Asset</span>
-                    <select value={form.asset_id} onChange={(event) => setForm((prev) => ({ ...prev, asset_id: event.target.value }))}>
-                      <option value="">Select asset</option>
-                      {assets.map((asset) => (
-                        <option key={asset.id} value={asset.id}>{asset.name}</option>
-                      ))}
-                    </select>
-                    {errors.asset_id && <small>{errors.asset_id}</small>}
-                  </label>
-                  <label className="maintenance-form-field">
-                    <span>Issue</span>
-                    <textarea rows={4} value={form.issue} onChange={(event) => setForm((prev) => ({ ...prev, issue: event.target.value }))} />
-                    {errors.issue && <small>{errors.issue}</small>}
-                  </label>
-                  <label className="maintenance-form-field">
-                    <span>Priority</span>
-                    <select value={form.priority} onChange={(event) => setForm((prev) => ({ ...prev, priority: event.target.value }))}>
-                      <option value="LOW">Low</option>
-                      <option value="MEDIUM">Medium</option>
-                      <option value="HIGH">High</option>
-                      <option value="URGENT">Urgent</option>
-                    </select>
-                    {errors.priority && <small>{errors.priority}</small>}
-                  </label>
-                  <label className="maintenance-form-field">
-                    <span>Photo upload</span>
-                    <input type="file" onChange={(event) => setForm((prev) => ({ ...prev, photo_url: URL.createObjectURL(event.target.files?.[0] || new Blob()) }))} />
-                  </label>
-                  <button type="submit" className="maintenance-primary-btn">Submit request</button>
-                </form>
               </section>
 
-              <aside className="maintenance-panel detail-panel">
-                {selectedRequest ? (
-                  <>
-                    <div className="maintenance-panel-header">
-                      <h2>Request details</h2>
-                      <span className={`maintenance-chip ${STATUS_CLASS[selectedRequest.status] || 'status-gray'}`}>{selectedRequest.status}</span>
-                    </div>
-                    <p className="detail-text">{selectedRequest.issue}</p>
-                    {selectedRequest.photo_url && <img src={selectedRequest.photo_url} alt="" className="maintenance-photo" />}
-                    <div className="detail-metrics">
-                      <div><strong>Asset</strong><span>{selectedAsset?.name || '—'}</span></div>
-                      <div><strong>Reporter</strong><span>{resolveReporter(selectedRequest.reported_by)}</span></div>
-                      <div><strong>Priority</strong><span>{selectedRequest.priority}</span></div>
-                      <div><strong>Technician</strong><span>{selectedRequest.technician_name || 'Unassigned'}</span></div>
-                    </div>
+              <div className="maintenance-side-stack">
+                <section className="maintenance-panel">
+                  <div className="maintenance-panel-header">
+                    <h2>Raise request</h2>
+                  </div>
+                  <form className="maintenance-form" onSubmit={handleSubmit}>
+                    <label className="maintenance-form-field">
+                      <span>Asset</span>
+                      <select value={form.asset_id} onChange={(event) => setForm((prev) => ({ ...prev, asset_id: event.target.value }))}>
+                        <option value="">Select asset</option>
+                        {assets.map((asset) => (
+                          <option key={asset.id} value={asset.id}>{asset.name}</option>
+                        ))}
+                      </select>
+                      {errors.asset_id && <small>{errors.asset_id}</small>}
+                    </label>
+                    <label className="maintenance-form-field">
+                      <span>Issue</span>
+                      <textarea rows={4} value={form.issue} onChange={(event) => setForm((prev) => ({ ...prev, issue: event.target.value }))} />
+                      {errors.issue && <small>{errors.issue}</small>}
+                    </label>
+                    <label className="maintenance-form-field">
+                      <span>Priority</span>
+                      <select value={form.priority} onChange={(event) => setForm((prev) => ({ ...prev, priority: event.target.value }))}>
+                        <option value="LOW">Low</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="HIGH">High</option>
+                        <option value="URGENT">Urgent</option>
+                      </select>
+                      {errors.priority && <small>{errors.priority}</small>}
+                    </label>
+                    <label className="maintenance-form-field">
+                      <span>Photo upload</span>
+                      <input type="file" onChange={(event) => setForm((prev) => ({ ...prev, photo_url: URL.createObjectURL(event.target.files?.[0] || new Blob()) }))} />
+                    </label>
+                    <button type="submit" className="maintenance-primary-btn">Submit request</button>
+                  </form>
+                </section>
 
-                    {CURRENT_USER.role === 'ASSET_MANAGER' && selectedRequest.status === 'PENDING' && (
-                      <div className="maintenance-action-group">
-                        <textarea rows={3} value={approveNote} placeholder="Approval remarks" onChange={(event) => setApproveNote(event.target.value)} />
-                        <div className="maintenance-actions">
-                          <button className="maintenance-secondary-btn" onClick={handleReject}>Reject</button>
-                          <button className="maintenance-primary-btn" onClick={handleApprove}>Approve</button>
+                <aside className="maintenance-panel detail-panel">
+                  {selectedRequest ? (
+                    <>
+                      <div className="maintenance-panel-header">
+                        <h2>Request details</h2>
+                        <span className={`maintenance-chip ${STATUS_CLASS[selectedRequest.status] || 'status-gray'}`}>{selectedRequest.status}</span>
+                      </div>
+                      <div className="detail-card">
+                        <p className="detail-text">{selectedRequest.issue}</p>
+                        {selectedRequest.photo_url && <img src={selectedRequest.photo_url} alt="" className="maintenance-photo" />}
+                        <div className="detail-metrics">
+                          <div><strong>Asset</strong><span>{selectedAsset?.name || '—'}</span></div>
+                          <div><strong>Reporter</strong><span>{resolveReporter(selectedRequest.reported_by)}</span></div>
+                          <div><strong>Priority</strong><span>{selectedRequest.priority}</span></div>
+                          <div><strong>Technician</strong><span>{selectedRequest.technician_name || 'Unassigned'}</span></div>
                         </div>
                       </div>
-                    )}
 
-                    {selectedRequest.status === 'APPROVED' && (
-                      <div className="maintenance-action-group">
-                        <label className="maintenance-form-field">
-                          <span>Assign technician</span>
-                          <input value={technicianName} onChange={(event) => setTechnicianName(event.target.value)} placeholder="Technician name" />
-                        </label>
-                        <button className="maintenance-primary-btn" onClick={handleAssignTechnician}>Start work</button>
-                      </div>
-                    )}
-
-                    {selectedRequest.status === 'IN_PROGRESS' && (
-                      <div className="maintenance-action-group">
-                        <label className="maintenance-form-field">
-                          <span>Resolution notes</span>
-                          <textarea rows={3} value={resolutionNotes} onChange={(event) => setResolutionNotes(event.target.value)} />
-                        </label>
-                        <button className="maintenance-primary-btn" onClick={handleResolve}>Resolve</button>
-                      </div>
-                    )}
-
-                    <div className="maintenance-history">
-                      <h3>History for this asset</h3>
-                      {requests.filter((request) => request.asset_id === selectedRequest.asset_id).map((entry) => (
-                        <div key={entry.id} className="maintenance-history-item">
-                          <div>
-                            <strong>{entry.issue}</strong>
-                            <p>{entry.status}</p>
+                      {CURRENT_USER.role === 'ASSET_MANAGER' && selectedRequest.status === 'PENDING' && (
+                        <div className="maintenance-action-group">
+                          <textarea rows={3} value={approveNote} placeholder="Approval remarks" onChange={(event) => setApproveNote(event.target.value)} />
+                          <div className="maintenance-actions">
+                            <button className="maintenance-secondary-btn" onClick={handleReject}>Reject</button>
+                            <button className="maintenance-primary-btn" onClick={handleApprove}>Approve</button>
                           </div>
-                          <span>{entry.created_at || '—'}</span>
                         </div>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <div className="empty-state">Select a request to inspect it</div>
-                )}
-              </aside>
+                      )}
+
+                      {selectedRequest.status === 'APPROVED' && (
+                        <div className="maintenance-action-group">
+                          <label className="maintenance-form-field">
+                            <span>Assign technician</span>
+                            <input value={technicianName} onChange={(event) => setTechnicianName(event.target.value)} placeholder="Technician name" />
+                          </label>
+                          <button className="maintenance-primary-btn" onClick={handleAssignTechnician}>Start work</button>
+                        </div>
+                      )}
+
+                      {selectedRequest.status === 'IN_PROGRESS' && (
+                        <div className="maintenance-action-group">
+                          <label className="maintenance-form-field">
+                            <span>Resolution notes</span>
+                            <textarea rows={3} value={resolutionNotes} onChange={(event) => setResolutionNotes(event.target.value)} />
+                          </label>
+                          <button className="maintenance-primary-btn" onClick={handleResolve}>Resolve</button>
+                        </div>
+                      )}
+
+                      <div className="maintenance-history">
+                        <h3>History for this asset</h3>
+                        {requests.filter((request) => request.asset_id === selectedRequest.asset_id).map((entry) => (
+                          <div key={entry.id} className="maintenance-history-item">
+                            <div>
+                              <strong>{entry.issue}</strong>
+                              <p>{entry.status}</p>
+                            </div>
+                            <span>{entry.created_at || '—'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="empty-state">Select a request to inspect it</div>
+                  )}
+                </aside>
+              </div>
             </div>
           )}
         </main>

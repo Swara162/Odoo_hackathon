@@ -61,11 +61,16 @@
   border-radius: 16px;
   padding: 18px;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 14px;
+  margin-bottom: 18px;
+}
+
+.asset-toolbar-top {
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 18px;
+  gap: 12px;
 }
 
 .asset-search-wrap {
@@ -93,10 +98,10 @@
 }
 
 .asset-filter-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  flex: 1;
+  width: 100%;
 }
 
 .asset-filter-field {
@@ -114,7 +119,7 @@
 .asset-filter-field select,
 .asset-form-field input,
 .asset-form-field select {
-  min-width: 140px;
+  width: 100%;
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
@@ -230,7 +235,7 @@
   gap: 6px;
   padding: 4px 8px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   margin-right: 6px;
 }
@@ -307,6 +312,26 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 8px;
+}
+
+.asset-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.asset-edit-btn {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .asset-detail-grid {
@@ -457,6 +482,11 @@
   .asset-toolbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .asset-toolbar-top {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .asset-filter-row,

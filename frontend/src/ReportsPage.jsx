@@ -81,6 +81,72 @@ function BarChartCard({ title, data, labels, exportLabel }) {
   );
 }
 
+function PieChartCard({ title, data, labels, colors, exportLabel }) {
+  const total = data.reduce((sum, value) => sum + value, 0);
+  const segments = data.reduce((acc, value, index) => {
+    if (value <= 0) return acc;
+    const start = acc.start;
+    const end = start + (value / total) * 360;
+    acc.parts.push(`${colors[index % colors.length]} ${start}deg ${end}deg`);
+    acc.start = end;
+    return acc;
+  }, { parts: [], start: 0 });
+
+  const pieStyle = {
+    background: segments.parts.length > 0
+      ? `conic-gradient(${segments.parts.join(', ')})`
+      : '#e5e7eb',
+  };
+
+  return (
+    <div className="report-card">
+      <div className="report-card-header">
+        <h3>{title}</h3>
+        <button className="report-export-btn" onClick={() => window.alert(`Export stub for ${exportLabel}`)}>
+          Export
+        </button>
+      </div>
+      <div className="report-chart-wrap report-pie-wrap">
+        <div className="report-pie-chart" style={pieStyle} />
+        <div className="report-legend">
+          {labels.map((label, index) => (
+            <div key={label} className="report-legend-item">
+              <span className="report-legend-swatch" style={{ background: colors[index % colors.length] }} />
+              <span>{label}</span>
+              <strong>{data[index]}</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LineChartCard({ title, data, labels, exportLabel }) {
+  const max = Math.max(...data, 1);
+  const points = data.map((value, index) => `${(index / Math.max(data.length - 1, 1)) * 100},${100 - (value / max) * 80 - 10}`).join(' ');
+
+  return (
+    <div className="report-card">
+      <div className="report-card-header">
+        <h3>{title}</h3>
+        <button className="report-export-btn" onClick={() => window.alert(`Export stub for ${exportLabel}`)}>
+          Export
+        </button>
+      </div>
+      <div className="report-chart-wrap report-line-wrap">
+        <svg viewBox="0 0 100 100" className="report-line-chart" role="img" aria-label={title}>
+          <line x1="0" y1="90" x2="100" y2="90" className="report-line-axis" />
+          <polyline points={points} className="report-line-polyline" />
+        </svg>
+        <div className="report-axis-labels">
+          {labels.map((label) => <span key={label}>{label}</span>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
 
@@ -127,9 +193,25 @@ export default function ReportsPage() {
   }, []);
 
   const retirementWatch = useMemo(() => {
-    // Placeholder business rule: flag assets with poor/damaged condition or no maintenance activity for 30 days.
     return INITIAL_ASSETS.filter((asset) => asset.condition === 'POOR' || asset.condition === 'DAMAGED');
   }, []);
+
+  const statusBreakdown = useMemo(() => {
+    const counts = { AVAILABLE: 0, ALLOCATED: 0, UNDER_MAINTENANCE: 0, LOST: 0, RETIRED: 0 };
+    INITIAL_ASSETS.forEach((asset) => {
+      counts[asset.status] = (counts[asset.status] || 0) + 1;
+    });
+    return {
+      labels: Object.keys(counts),
+      data: Object.values(counts),
+      colors: ['#10b981', '#2563eb', '#f59e0b', '#ef4444', '#6b7280'],
+    };
+  }, []);
+
+  const trendData = useMemo(() => ({
+    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    data: [2, 3, 4, 5, 6, 7],
+  }), []);
 
   return (
     <div className="app-shell">
@@ -148,6 +230,8 @@ export default function ReportsPage() {
           ) : (
             <div className="reports-grid">
               <BarChartCard title="Asset utilization" data={utilizationData} labels={INITIAL_ASSETS.map((asset) => asset.name)} exportLabel="asset-utilization" />
+              <PieChartCard title="Asset status distribution" data={statusBreakdown.data} labels={statusBreakdown.labels} colors={statusBreakdown.colors} exportLabel="asset-status" />
+              <LineChartCard title="Allocation trend" data={trendData.data} labels={trendData.labels} exportLabel="allocation-trend" />
               <BarChartCard title="Department allocation summary" data={departmentData} labels={INITIAL_DEPARTMENTS.map((department) => department.name)} exportLabel="department-allocation" />
               <BarChartCard title="Maintenance frequency" data={maintenanceData} labels={INITIAL_ASSETS.map((asset) => asset.name)} exportLabel="maintenance-frequency" />
 
