@@ -2,26 +2,74 @@
 
 ### Enterprise Asset & Resource Management System
 
-AssetFlow is a centralized ERP platform that helps organizations track, allocate, and maintain their physical assets and shared resources — replacing scattered spreadsheets and paper logs with a single source of truth.
+AssetFlow is a centralized ERP platform designed to help organizations track, allocate, and maintain their physical assets and shared resources. By replacing scattered spreadsheets, paper logs, and disparate emails, AssetFlow provides a single, reliable source of truth.
 
-It's built for any organization with equipment, furniture, vehicles, or shared spaces — offices, schools, hospitals, factories, or agencies — that needs real-time visibility into **who holds what, where it is, and its condition**.
+It is built for any organization—such as offices, schools, hospitals, factories, or agencies—that manages equipment, furniture, vehicles, or shared spaces, and requires real-time visibility into asset location, allocation, and condition.
 
-## What it does
+---
 
-- **Asset lifecycle tracking** — every asset moves through a defined lifecycle (Available, Allocated, Reserved, Under Maintenance, Lost, Retired, Disposed), with full history retained at every step.
-- **Conflict-free allocation** — assets can be allocated to employees or departments, with the system automatically blocking double-allocation and routing conflicting requests through a transfer workflow instead.
-- **Overlap-free resource booking** — shared resources like rooms and vehicles can be booked by time slot, with automatic overlap validation.
-- **Approval-gated maintenance** — repair requests are routed through an approval workflow before work begins, with the asset status updating automatically along the way.
-- **Structured audits** — scheduled audit cycles assign auditors, verify assets, and auto-generate discrepancy reports before closing.
-- **Real-time notifications & dashboards** — overdue returns, bookings, and maintenance events surface through a KPI dashboard and activity log, so nothing falls through the cracks.
+## 🏗️ Architecture Diagram
 
-## Why it matters
+The system employs a classic client-server architecture with role-based access control and a relational database.
 
-Most organizations still track assets manually — in spreadsheets, registers, or scattered emails — which leads to lost equipment, double-bookings, and no clear audit trail. AssetFlow brings structure, accountability, and visibility to asset management through clean ERP architecture, role-based workflows, and scalable module design — without touching purchasing, invoicing, or accounting concerns.
+```mermaid
+graph TD
+    Client([User Client Browser])
+    
+    subgraph Frontend_Tier [Frontend Tier]
+        ViteReact[React 19 + Vite]
+        Tailwind[Tailwind CSS v4]
+    end
+    
+    subgraph Backend_Tier [Backend Tier]
+        FastAPI[FastAPI Web Framework]
+        SQLAlchemy[SQLAlchemy ORM]
+        Alembic[Alembic Migration Engine]
+    end
+    
+    subgraph Database_Tier [Database Tier]
+        PostgreSQL[(PostgreSQL Database)]
+    end
+    
+    Client -->|Interacts with UI| ViteReact
+    ViteReact -->|HTTPS / JSON REST API| FastAPI
+    FastAPI -->|Python Objects / ORM Queries| SQLAlchemy
+    SQLAlchemy -->|Migrations| Alembic
+    SQLAlchemy -->|SQL Queries| PostgreSQL
+```
 
-## Who uses it
+---
 
-- **Admin** — sets up departments, asset categories, and promotes employees to Department Head or Asset Manager
-- **Asset Manager** — registers and allocates assets, approves transfers, maintenance, and audit resolutions
-- **Department Head** — manages assets and bookings for their department
-- **Employee** — views their allocated assets, books resources, and raises requests
+## 🛠️ Tech Stack
+
+### Frontend
+- **React (v19)**: Component-based UI library.
+- **Vite (v8)**: Ultra-fast frontend build tool and dev server.
+- **Tailwind CSS (v4)**: Utility-first CSS styling framework.
+- **React Router Dom (v7)**: SPA client-side routing.
+- **Axios**: Promise-based HTTP client for API communication.
+- **Lucide React**: Modern, clean icon library.
+
+### Backend & Database
+- **FastAPI**: Modern, high-performance web framework for building APIs with Python.
+- **SQLAlchemy**: Feature-rich SQL toolkit and Object-Relational Mapper (ORM).
+- **Alembic**: Database migration tool for SQLAlchemy.
+- **PostgreSQL**: Robust, enterprise-grade relational database management system.
+- **Pydantic (v2)**: Data validation and settings management using Python type annotations.
+
+---
+
+## ✨ Features Explained
+
+- **Asset Lifecycle Tracking**: Every physical asset is tracked through its entire lifecycle (Available, Allocated, Reserved, Under Maintenance, Lost, Retired, Disposed), maintaining a complete audit trail of state changes.
+- **Conflict-Free Asset Allocation**: Streamlines the process of assigning assets to employees or departments. The system validates availability in real time, blocks double-allocations, and routes overlapping requests through structured transfer workflows.
+- **Overlap-Free Resource Booking**: Manages shared resources like conference rooms, vehicles, or specialized equipment by time slots, enforcing strict validation to prevent scheduling conflicts.
+- **Approval-Gated Maintenance Workflows**: Employees can report faulty assets or raise repair requests. Requests undergo an approval pipeline by Asset Managers, automatically updating asset status to *Under Maintenance* and back to *Available* upon resolution.
+- **Structured Audits & Discrepancies**: Allows administrators to schedule audit cycles, assign auditors, verify physical assets, and automatically generate discrepancy reports for unresolved items.
+- **Real-Time Dashboards & Alerts**: Provides a unified KPI dashboard with activity logs, notifying administrators and users of overdue returns, upcoming bookings, and pending maintenance tasks.
+- **Role-Based Access Control (RBAC)**: Enforces permission boundaries across four distinct roles:
+  - **Admin**: Configures organization structures, departments, asset categories, and system roles.
+  - **Asset Manager**: Registers and maintains assets, and handles approvals for allocations, transfers, and maintenance.
+  - **Department Head**: Oversees assets and resource scheduling specific to their department.
+  - **Employee**: Views allocated assets, schedules resource bookings, and raises maintenance requests.
+
