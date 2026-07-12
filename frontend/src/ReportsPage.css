@@ -1,0 +1,127 @@
+.reports-page {
+  flex: 1;
+  padding: 24px 28px 32px;
+  overflow-y: auto;
+  background: #f6f8fc;
+}
+
+.reports-topbar {
+  margin-bottom: 18px;
+}
+
+.reports-eyebrow {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.reports-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.reports-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.report-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+}
+
+.report-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.report-card-header h3 {
+  font-size: 16px;
+  color: #111827;
+}
+
+.report-export-btn {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.report-chart-wrap {
+  height: 220px;
+}
+
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: 70px repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.heatmap-axis,
+.heatmap-day,
+.heatmap-hour,
+.heatmap-cell {
+  min-height: 18px;
+}
+
+.heatmap-day,
+.heatmap-hour {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.heatmap-cell {
+  border-radius: 4px;
+  background: #e5e7eb;
+}
+
+.heatmap-cell.level-1 { background: #dbeafe; }
+.heatmap-cell.level-2 { background: #93c5fd; }
+.heatmap-cell.level-3 { background: #2563eb; }
+
+.report-table-card {
+  grid-column: 1 / -1;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.report-table th,
+.report-table td {
+  padding: 10px 6px;
+  border-bottom: 1px solid #f3f4f6;
+  text-align: left;
+}
+
+.reports-loading {
+  padding: 24px;
+  text-align: center;
+  color: #6b7280;
+}
+
+@media (max-width: 900px) {
+  .reports-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .reports-page {
+    padding: 16px;
+  }
+}
